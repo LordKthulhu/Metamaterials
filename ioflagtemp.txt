@@ -1,0 +1,15 @@
+ 1        :(10) Inputdata check    (Yes=1, No=0)
+ 1        :(10) MECH.nod processing(Yes=1, No=0)
+ 0        :(10) MECH.fld processing(Yes=1, No=0)
+ 0        :(10) MECH.crk processing(Yes=1, No=0) *Under construction
+ 0        :(10) MECH.int processing(Yes=1, No=0) *maybe available
+ 0        :(10) HEAT.nod processing(Yes=1, No=0)
+ 0        :(10) HEAT.int processing(Yes=1, No=0)
+ 0        :(10) HYGR.nod processing(Yes=1, No=0)
+ 0        :(10) HYGR.int processing(Yes=1, No=0)
+ 0        :(10) CHLD.nod processing(Yes=1, No=0)
+ 0        :(10) CHLD.int processing(Yes=1, No=0)
+ 0        :(10) CO2G.nod processing(Yes=1, No=0)
+ 0        :(10) CO2G.int processing(Yes=1, No=0)
+ 0        :(10) OXGE.nod processing(Yes=1, No=0)
+ 0        :(10) OXGE.int processing(Yes=1, No=0)

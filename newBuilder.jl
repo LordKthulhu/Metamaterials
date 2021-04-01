@@ -431,6 +431,8 @@ Threads.@threads for iter = 1:iterations
 
         mechFiles = glob("$(filename)/MECHIFI*")
         run(`rm $mechFiles`)
+        mechFiles = glob("$(filename)-plain/MECHIFI*")
+        run(`rm $mechFiles`)
         weights[iter] = sum(nodes .* nodeWeights) + sum(links .* linkWeights)
     end
 
@@ -460,8 +462,7 @@ Threads.@threads for iter = 1:iterations
     plotfile = filename*"/"*filename*"-plot.png"
     png(plt2,plotfile)
 
-    cleanup = glob("$(filename)*.aux")
-    run(`rm $(cleanup)`)
+    run(`rm $filename-restart.aux $filename-plain-restart.aux`)
     next!(progress)
 end
 
@@ -475,6 +476,10 @@ writedlm(io,transpose(weights),",")
 writedlm(io,transpose(maxStrains),",")
 writedlm(io,transpose(maxSigmas),",")
 writedlm(io,transpose(energyAbsorptions),",")
+writedlm(io,transpose(maxStrainsPlain),",")
+writedlm(io,transpose(maxSigmasPlain),",")
+writedlm(io,transpose(energyAbsorptionsPlain),",")
+
 close(io)
 
 strainsPlt = plot(weights,maxStrains, seriestype = :scatter, xlabel = "Area (cm2)",ylabel = "Failure strain",label="PVA-ECC", color = :blue)

@@ -157,7 +157,9 @@ global energyAbsorptions = zeros(iterations)
 global energyAbsorptionsPlain = zeros(iterations)
 global weights = zeros(iterations)
 
-global barPlots = [ plot(showaxis=false,size=(400,400)) for i=1:iterations ]
+global plt2 = [plot() for i in 1:iterations]
+
+global barPlots = [[] for i in 1:iterations]
 progress = Progress(iterations, dt = 1, desc = "Computing progress... " , barglyphs=BarGlyphs('|','█', ['▁' ,'▂' ,'▃' ,'▄' ,'▅' ,'▆', '▇'],' ','|',), barlen=20)
 
 const H = 3
@@ -250,31 +252,28 @@ Threads.@threads for iter = 1:iterations
 
         ##### Geometry plot #####
 
-
-        barPlots[iter] = plot(showaxis = false, size = (400,400))
-
         for i in 1:H, j in 1:H
             for index in findall(links[i,j,:])
                 if index == 1
-                    plot!(barPlots[iter], [j, j-1], [i,i+1], lc=:black, lw = 3, label = false)
-                    plot!(barPlots[iter], [j, j-1], [2*(H)-i,2*(H)-(i+1)], lc=:black, lw = 3, label = false)
-                    plot!(barPlots[iter], [2*(H)-j, 2*(H)-(j-1)], [i,(i+1)], lc=:black, lw = 3, label = false)
-                    plot!(barPlots[iter], [2*(H)-j, 2*(H)-(j-1)], [2*(H)-i,2*(H)-(i+1)], lc=:black, lw = 3, label = false)
+                    push!(barPlots[iter], [[j, j-1], [i,i+1]])
+                    push!(barPlots[iter], [[j, j-1], [2*(H)-i,2*(H)-(i+1)]])
+                    push!(barPlots[iter], [[2*(H)-j, 2*(H)-(j-1)], [i,(i+1)]])
+                    push!(barPlots[iter], [[2*(H)-j, 2*(H)-(j-1)], [2*(H)-i,2*(H)-(i+1)]])
                 elseif index == 2
-                    plot!(barPlots[iter], [j, j], [i,i+1], lc=:black, lw = 3, label = false)
-                    plot!(barPlots[iter], [j, j], [2*(H)-i,2*(H)-(i+1)], lc=:black, lw = 3, label = false)
-                    plot!(barPlots[iter], [2*(H)-j, 2*(H)-j], [i,i+1], lc=:black, lw = 3, label = false)
-                    plot!(barPlots[iter], [2*(H)-j, 2*(H)-j], [2*(H)-i,2*(H)-(i+1)], lc=:black, lw = 3, label = false)
+                    push!(barPlots[iter], [[j, j], [i,i+1]])
+                    push!(barPlots[iter], [[j, j], [2*(H)-i,2*(H)-(i+1)]])
+                    push!(barPlots[iter], [[2*(H)-j, 2*(H)-j], [i,i+1]])
+                    push!(barPlots[iter], [[2*(H)-j, 2*(H)-j], [2*(H)-i,2*(H)-(i+1)]])
                 elseif index == 3
-                    plot!(barPlots[iter], [j, j+1], [i,i+1], lc=:black, lw = 3, label = false)
-                    plot!(barPlots[iter], [j, j+1], [2*(H)-i,2*(H)-(i+1)], lc=:black, lw = 3, label = false)
-                    plot!(barPlots[iter], [2*(H)-j, 2*(H)-(j+1)], [i,i+1], lc=:black, lw = 3, label = false)
-                    plot!(barPlots[iter], [2*(H)-j, 2*(H)-(j+1)], [2*(H)-i,2*(H)-(i+1)], lc=:black, lw = 3, label = false)
+                    push!(barPlots[iter], [[j, j+1], [i,i+1]])
+                    push!(barPlots[iter], [[j, j+1], [2*(H)-i,2*(H)-(i+1)]])
+                    push!(barPlots[iter], [[2*(H)-j, 2*(H)-(j+1)], [i,i+1]])
+                    push!(barPlots[iter], [[2*(H)-j, 2*(H)-(j+1)], [2*(H)-i,2*(H)-(i+1)]])
                 else
-                    plot!(barPlots[iter], [j, j+1], [i,i], lc=:black, lw = 3, label = false)
-                    plot!(barPlots[iter], [j, j+1], [2*(H)-i,2*(H)-i], lc=:black, lw = 3, label = false)
-                    plot!(barPlots[iter], [2*(H)-j, 2*(H)-(j+1)], [i,i], lc=:black, lw = 3, label = false)
-                    plot!(barPlots[iter], [2*(H)-j, 2*(H)-(j+1)], [2*(H)-i,2*(H)-i], lc=:black, lw = 3, label = false)
+                    push!(barPlots[iter], [[j, j+1], [i,i]])
+                    push!(barPlots[iter], [[j, j+1], [2*(H)-i,2*(H)-i]])
+                    push!(barPlots[iter], [[2*(H)-j, 2*(H)-(j+1)], [i,i]])
+                    push!(barPlots[iter], [[2*(H)-j, 2*(H)-(j+1)], [2*(H)-i,2*(H)-i]])
                 end
             end
         end
@@ -457,17 +456,26 @@ Threads.@threads for iter = 1:iterations
     writedlm(io,transpose(sigmaOverall),",")
     close(io)
 
-    plt2 = plot(strain,sigmaOverall, lw = 3, ylabel = "Overall Stress (kg/cm2)",lc="green", label="PVA-ECC")
-    plot!(plt2,strain,sigmaOverallPlain, lw = 3, lc="red", label="Plain Concrete")
-    plotfile = filename*"/"*filename*"-plot.png"
-    png(plt2,plotfile)
+    plt2[iter] = plot(strain,sigmaOverall, lw = 3, ylabel = "Overall Stress (kg/cm2)",lc="green", label="PVA-ECC")
+    plot!(plt2[iter],strain,sigmaOverallPlain, lw = 3, lc="red", label="Plain Concrete")
 
     run(`rm $filename-restart.aux $filename-plain-restart.aux`)
     next!(progress)
 end
 
 for i=1:iterations
-png(barPlots[i],"metamat"*string(i)*"/metamat"*string(i)*"-barplot.png")
+    plt = plot(showaxis=false,size=(400,400))
+    for line in barPlots[i]
+        plot!(plt, line[1], line[2], lw =3, lc = :black, label = false)
+    end
+    png(plt,"metamat"*string(i)*"/metamat"*string(i)*"-barplot.png")
+    sleep(0.5)
+end
+
+for i=1:iterations
+    plotfile = "metamat$i/metamat$i-plot.png"
+    png(plt2[i],plotfile)
+    sleep(0.5)
 end
 
 io = open("results.csv","a")
@@ -486,10 +494,12 @@ strainsPlt = plot(weights,maxStrains, seriestype = :scatter, xlabel = "Area (cm2
 plot!(strainsPlt, weights,maxStrainsPlain, seriestype = :scatter, label="Plain Concrete", color = :red)
 png(strainsPlt,"strains.png")
 
+sleep(0.5)
 stressPlt = plot(weights,maxSigmas, seriestype = :scatter, xlabel = "Area (cm2)",ylabel = "Failure stress",label="PVA-ECC", color = :blue)
 plot!(stressPlt, weights,maxSigmasPlain, seriestype = :scatter, label="Plain Concrete", color = :red)
 png(stressPlt,"stresses.png")
 
+sleep(0.5)
 energyPlt = plot(weights,energyAbsorptions, seriestype = :scatter, xlabel = "Area (cm2)",ylabel = "Absorbed energy at failure",label="PVA-ECC", color = :blue)
 plot!(energyPlt, weights, energyAbsorptionsPlain, seriestype = :scatter, label="Plain Concrete", color = :red)
 png(energyPlt,"energies.png")

@@ -6,35 +6,10 @@ using Glob
 using Dates
 using ProgressMeter
 
+include("Ressources/consoleTools.jl")
+include("Ressources/COM3RWTools.jl")
+
 ENV["GKSwstype"] = "100"
-
-function execute(cmd::Cmd)
-  out = Pipe()
-  err = Pipe()
-
-  process = run(pipeline(ignorestatus(cmd), stdout=out, stderr=err))
-  close(out.in)
-  close(err.in)
-  code = process.exitcode
-  code == 1 ? display("Error occured") : nothing
-  code
-end
-
-function forceSteps(filename)
-    force = 0
-    forceList = []
-    for line in readlines(filename * "/" * filename * "-MECH.nod",keep=true)[3:end]
-        if line[2:5] == "STEP"
-            push!(forceList,force)
-        elseif line[2:5] == "NODE"
-            force = 0
-        else
-            force += abs( parse( Float64, split(line)[7] ))
-        end
-    end
-    push!(forceList,force)
-    forceList
-end
 
 function runSteps(strain, sigmaOverall, filename, dEpsilonMax,loadPoints,maxOverall,exit,sigmaOverallPlain)
 
@@ -97,81 +72,6 @@ function energy(strain,sigmaOverall)
     energy
 end
 
-function nodeLine(n,x,y,z,loadPoints)
-    sn = string(n)
-    sx = @sprintf("%.3f",x); sy = @sprintf("%.3f",y); sz = @sprintf("%.3f",z)
-    restraint = collect("010")
-
-    if z == 0
-        push!(loadPoints, [n,-1])
-        restraint[3] = '1'
-    elseif z == 12*(H-1)*unitSize
-        push!(loadPoints, [n,1])
-        restraint[3] = '1'
-    elseif x == 12*(H-1)*unitSize
-        restraint[1] = '1'
-    end
-    "NODE " * " "^(5-length(sn)) * sn * " "^(10-length(sx)) * sx * " "^(10-length(sy)) * sy * " "^(10-length(sz)) * sz * "                    " * join(restraint) * "\n"
-end
-
-function elementLine(n,P)
-
-    sn = string(n)
-    P = string.(P)
-
-    "PLAT " *" "^(5-length(sn)) * sn * " "^(5-length(P[1])) * P[1] * " "^(5-length(P[2])) * P[2] * " "^(5-length(P[3])) * P[3] *
-    " "^(5-length(P[4])) * P[4] * "    0    0    0    0    0    0    0    0    0\n" *
-    "    0    0    0    0    0    0    0    3       0.0       1.0    3000.0 0.0025000       0.0                                                                                                         0.005     0.046       0.8\n" *
-    "    450.00    48.000      0.17    0\n" *
-    " 2100000.0    4000.0   0.00000 2100000.0    4000.0   0.00000       0.0       0.0       0.0\n"
-end
-
-function elementLinePlain(n,P)
-
-    sn = string(n)
-    P = string.(P)
-
-    "PLAT " *" "^(5-length(sn)) * sn * " "^(5-length(P[1])) * P[1] * " "^(5-length(P[2])) * P[2] * " "^(5-length(P[3])) * P[3] *
-    " "^(5-length(P[4])) * P[4] * "    0    0    0    0    0    0    0    0    0\n" *
-    "    0    0    0    0    0    0    0    0       0.0       1.0    3000.0 0.0025000       0.0\n" *
-    "    450.00    48.000      0.17    0\n" *
-    " 2100000.0    4000.0   0.00000 2100000.0    4000.0   0.00000       0.0       0.0       0.0\n"
-end
-
-function loadLine(n,F)
-    sn = string(n)
-    sf = @sprintf("%.5f",F)
-    "LOAD " * " "^(5-length(sn)) * sn * "   0.00000   0.00000" * " "^(10-length(sf)) * sf * "\n"
-end
-
-function parseArguments()
-    currentArg = 1
-    while currentArg <= length(ARGS)
-        if ARGS[currentArg] == "-batchsize"
-            iterations = parse(Int,ARGS[currentArg+1])
-            currentArg += 2
-        elseif ARGS[currentArg] == "-material-random"
-            randomMat = true
-            currentArg += 1
-        elseif ARGS[currentArg] == "-patternsize"
-            H = parse(Int,ARGS[currentArg+1])
-            currentArg += 2
-        elseif ARGS[currentArg] == "-help"
-            println("Supported arguments are:\n
-               -batchsize            Specify the number of desired simulations\n
-               -material-random      base-material will be randomly picked\n
-               -patternsize          size of the pattern grid (default is 3)\n")
-            exit(0)
-        else
-            throw(ArgumentError("Unsupported argument : $(ARGS[currentArg]). For available arguments, type -help."))
-        end
-    end
-    (@isdefined H) ? nothing : H = 3
-    (@isdefined iterations) ? nothing : iterations = 1
-    (@isdefined randomMat) ? nothing : randomMat = false
-    (H,iterations,randomMat)
-end
-
 #### MAIN ####
 
 const H,iterations,randomMat = parseArguments()
@@ -206,8 +106,8 @@ linkWeights = zeros(H,H,4)
 linkWeights[:,:,1] = (20*sqrt(2)-2)*unitSize^2 .* ones(H,H); linkWeights[:,:,3] = (20*sqrt(2)-2)*unitSize^2 .* ones(H,H)
 linkWeights[:,:,2] = (20-4*sqrt(2))*unitSize^2 .* ones(H,H); linkWeights[:,:,4] = (20-4*sqrt(2))*unitSize^2 .* ones(H,H)
 
-basePoints = readdlm("points.csv",',')
-baseElements = readdlm("elements.csv",',',Int)
+basePoints = readdlm("Ressources/points.csv",',')
+baseElements = readdlm("Ressources/elements.csv",',',Int)
 
 for index in findall(x -> x > 1000, baseElements)
     if baseElements[index] < 2000

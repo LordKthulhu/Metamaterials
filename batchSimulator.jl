@@ -8,6 +8,7 @@ using ProgressMeter
 
 include("Ressources/consoleTools.jl")
 include("Ressources/COM3RWTools.jl")
+include("Ressources/geometryTools.jl")
 
 ENV["GKSwstype"] = "100"
 
@@ -91,7 +92,6 @@ global plt2 = [plot() for i in 1:iterations]
 global barPlots = [[] for i in 1:iterations]
 progress = Progress(iterations, dt = 1, desc = "Computing progress... " , barglyphs=BarGlyphs('|','█', ['▁' ,'▂' ,'▃' ,'▄' ,'▅' ,'▆', '▇'],' ','|',), barlen=20)
 
-const p = 0.7
 const unitSize = 1
 const dEpsilonMax = 2e-4
 const area = 12*(H-1)*unitSize*1.0
@@ -121,6 +121,10 @@ for index in findall(x -> x > 1000, baseElements)
     end
 end
 
+################################################################################
+#####                             MAIN LOOP                                #####
+################################################################################
+
 Threads.@threads for iter = 1:iterations
     filename = "metamat" * string(iter)
 
@@ -135,157 +139,39 @@ Threads.@threads for iter = 1:iterations
         nodes = falses(H, H)
         links = falses(H, H, 4)
         potLinks = trues(H, H, 4)
+        loadPoints = []
 
         potLinks[:,1,1] = falses(H)
         potLinks[:,H,3:4] = falses(H,2)
         potLinks[H,:,:] = falses(H,4)
 
-        loadPoints = []
+        randomGeometry(H,nodes,links,potLinks) # Geometry generation
 
+        plotGeometry(barPlots,iter,links,H) # Adding data for geometry plot
 
-        ##### Geometry generation #####
+        ########################################################################
+        #####                   COM3 FILES GENERATION                      #####
+        ########################################################################
 
-
-        for i in 1:H-1
-            i == 1 ? nodes[1,:] = rand(H) .< p : nothing
-            nodes[1,1] = true
-            for j in 1:H
-                if nodes[i,j]
-                    potLinksCount = length(findall(potLinks[i,j,:]))
-                    for l in 1:rand(1:potLinksCount)
-                        index = rand(findall(potLinks[i,j,:]))
-                        links[i,j,index] = true; potLinks[i,j,index] = false
-                        if index == 1
-                            nodes[i+1,j-1] = true
-                        elseif index == 2
-                            nodes[i+1,j] = true
-                        elseif index == 3
-                            nodes[i+1,j+1] = true
-                            potLinks[i,j+1,1] = false
-                        else
-                            nodes[i,j+1] = true
-                        end
-                    end
-                end
-            end
-        end
-
-        for j in 1:H-1
-            if nodes[H,j] && rand(Bool)
-                links[H,j,4] = true
-                nodes[H,j+1] = true
-            end
-        end
-
-
-        ##### Geometry plot #####
-
-        for i in 1:H, j in 1:H
-            for index in findall(links[i,j,:])
-                if index == 1
-                    push!(barPlots[iter], [[j, j-1], [i,i+1]])
-                    push!(barPlots[iter], [[j, j-1], [2*(H)-i,2*(H)-(i+1)]])
-                    push!(barPlots[iter], [[2*(H)-j, 2*(H)-(j-1)], [i,(i+1)]])
-                    push!(barPlots[iter], [[2*(H)-j, 2*(H)-(j-1)], [2*(H)-i,2*(H)-(i+1)]])
-                elseif index == 2
-                    push!(barPlots[iter], [[j, j], [i,i+1]])
-                    push!(barPlots[iter], [[j, j], [2*(H)-i,2*(H)-(i+1)]])
-                    push!(barPlots[iter], [[2*(H)-j, 2*(H)-j], [i,i+1]])
-                    push!(barPlots[iter], [[2*(H)-j, 2*(H)-j], [2*(H)-i,2*(H)-(i+1)]])
-                elseif index == 3
-                    push!(barPlots[iter], [[j, j+1], [i,i+1]])
-                    push!(barPlots[iter], [[j, j+1], [2*(H)-i,2*(H)-(i+1)]])
-                    push!(barPlots[iter], [[2*(H)-j, 2*(H)-(j+1)], [i,i+1]])
-                    push!(barPlots[iter], [[2*(H)-j, 2*(H)-(j+1)], [2*(H)-i,2*(H)-(i+1)]])
-                else
-                    push!(barPlots[iter], [[j, j+1], [i,i]])
-                    push!(barPlots[iter], [[j, j+1], [2*(H)-i,2*(H)-i]])
-                    push!(barPlots[iter], [[2*(H)-j, 2*(H)-(j+1)], [i,i]])
-                    push!(barPlots[iter], [[2*(H)-j, 2*(H)-(j+1)], [2*(H)-i,2*(H)-i]])
-                end
-            end
-        end
-
-        ##### Meshing geometry #####
+        # Main files
 
         run(`mkdir $filename $filename-plain`)
         datFile = open("$filename.dat","w")
         write(datFile, "Metamaterial Project\n1202000001000200000000002     0.700     0.000     0.000         0\nNODE\n")
-
-        for index in findall(nodes)
-            i = index[1]; j = index[2]
-            nodeNumber = j + H*(i-1)
-            startingPoint = 145*(nodeNumber-1)
-            for pointNumber in 1:37
-                write(datFile,nodeLine( startingPoint + pointNumber, unitSize * (12*(j-1) + basePoints[pointNumber,2]), 0, unitSize * (12*(i-1) + basePoints[pointNumber,3]), loadPoints ))
-            end
-            for link in findall(links[i, j,:])
-                if link == 1
-                    for pointNumber in 38:70
-                        write(datFile,nodeLine( startingPoint + pointNumber, unitSize * (12*(j-1) + basePoints[pointNumber,2]), 0, unitSize * (12*(i-1) + basePoints[pointNumber,3]), loadPoints ))
-                    end
-                elseif link == 2
-                    for pointNumber in 71:91
-                        write(datFile,nodeLine( startingPoint + pointNumber, unitSize * (12*(j-1) + basePoints[pointNumber,2]), 0, unitSize * (12*(i-1) + basePoints[pointNumber,3]), loadPoints ))
-                    end
-                elseif link == 3
-                    for pointNumber in 92:124
-                        write(datFile,nodeLine( startingPoint + pointNumber, unitSize * (12*(j-1) + basePoints[pointNumber,2]), 0, unitSize * (12*(i-1) + basePoints[pointNumber,3]), loadPoints ))
-                    end
-                else
-                    for pointNumber in 125:145
-                        write(datFile,nodeLine( startingPoint + pointNumber, unitSize * (12*(j-1) + basePoints[pointNumber,2]), 0, unitSize * (12*(i-1) + basePoints[pointNumber,3]), loadPoints ))
-                    end
-                end
-            end
-        end
+        writeNodes(nodes, links, datFile, basePoints, loadPoints, H, unitSize)
         write(datFile, "ELEM\n")
-
         close(datFile)
         run(`cp $filename.dat $filename-plain.dat`)
         datFile = open("$filename.dat","a")
         datFilePlain = open("$filename-plain.dat","a")
-
-        for index in findall(nodes)
-            nodeNumber = index[2] + H*(index[1]-1)
-            startingPoint = 145*(nodeNumber-1)
-            startingElement = 112*(nodeNumber-1)
-            for elementNumber in 1:32
-                write(datFile,elementLine( startingElement + elementNumber, startingPoint .+ baseElements[elementNumber,2:end] ))
-                write(datFilePlain,elementLinePlain( startingElement + elementNumber, startingPoint .+ baseElements[elementNumber,2:end] ))
-            end
-            for link in findall(links[index[1], index[2],:])
-                if link == 1
-                    for elementNumber in 33:56
-                        write(datFile,elementLine( startingElement + elementNumber, startingPoint .+ baseElements[elementNumber,2:end] ))
-                        write(datFilePlain,elementLinePlain( startingElement + elementNumber, startingPoint .+ baseElements[elementNumber,2:end] ))
-
-                    end
-                elseif link == 2
-                    for elementNumber in 57:72
-                        write(datFile,elementLine( startingElement + elementNumber, startingPoint .+ baseElements[elementNumber,2:end] ))
-                        write(datFilePlain,elementLinePlain( startingElement + elementNumber, startingPoint .+ baseElements[elementNumber,2:end] ))
-                    end
-                elseif link == 3
-                    for elementNumber in 73:96
-                        write(datFile,elementLine( startingElement + elementNumber, startingPoint .+ baseElements[elementNumber,2:end] ))
-                        write(datFilePlain,elementLinePlain( startingElement + elementNumber, startingPoint .+ baseElements[elementNumber,2:end] ))
-                    end
-                else
-                    for elementNumber in 97:112
-                        write(datFile,elementLine( startingElement + elementNumber, startingPoint .+ baseElements[elementNumber,2:end] ))
-                        write(datFilePlain,elementLinePlain( startingElement + elementNumber, startingPoint .+ baseElements[elementNumber,2:end] ))
-                    end
-                end
-            end
-        end
-
+        writeElements(nodes, links, datFile, baseElements, H)
+        writeElementsPlain(nodes, links, datFilePlain, baseElements, H)
         write(datFile, "LOAD\n\n")
         write(datFilePlain, "LOAD\n\n")
         close(datFile)
         close(datFilePlain)
 
-        #### File with restart option
+        # File with restart option
 
         auxFile = open("$filename-restart.aux","w")
         lines = readlines("$filename.dat",keep=true)
@@ -309,36 +195,21 @@ Threads.@threads for iter = 1:iterations
         end
         close(auxFilePlain)
 
-        ##### Simulation #####
+        ########################################################################
+        #####                        SIMULATIONS                           #####
+        ########################################################################
 
         strain = []
         sigmaIntern = []
         sigmaOverall = []
-
-        datFile = open("$filename.dat","a")
-        datFilePlain = open("$filename-plain.dat","a")
-
         time = 0
-        nSteps = 0
-
+        step = 0
         loadRange = [ i*dEpsilonMax for i=1:10 ]
 
-        for i=1:10
-            time += 0.001
-            timeStr = @sprintf("%.4f",time)
-            write(datFile, "STEP " * " "^(5-length(string(i)))*string(i) * " "^(10-length(timeStr))*timeStr * "     0.000     0.000     0.000                                             0.000\n")
-            write(datFilePlain, "STEP " * " "^(5-length(string(i)))*string(i) * " "^(10-length(timeStr))*timeStr * "     0.000     0.000     0.000                                             0.000\n")
-            for load in loadPoints
-                write(datFile, loadLine(load[1], 12*(H-1)*unitSize*dEpsilonMax * load[2]))
-                write(datFilePlain, loadLine(load[1], 12*(H-1)*unitSize*dEpsilonMax * load[2]))
-            end
-        end
-        write(datFile, "END\n")
-        close(datFile)
-        write(datFilePlain, "END\n")
-        close(datFilePlain)
+        addSteps(loadPoints, step, dEpsilonMax, unitSize, filename)
+        addSteps(loadPoints, step, dEpsilonMax, unitSize, filename*"-plain")
 
-        nSteps += 10
+        step += 10
 
         run(`mv $filename.dat $filename`)
         exit = execute(`./runCOM3.sh $filename`)
@@ -364,6 +235,9 @@ Threads.@threads for iter = 1:iterations
     end
 
     ###### If all COM3 runs terminate, go on to results processing ######
+
+    run(`rm $filename/$filename-MECH.crk $filename/$filename-MECH.fld
+            $filename/$filename-MECH.int $filename/$filename-MECH.tmp`)
 
     strain = strain[1:end-1]
     maxSigma,index = findmax(sigmaOverall)
@@ -391,6 +265,12 @@ Threads.@threads for iter = 1:iterations
     next!(progress)
 end
 
+################################################################################
+#####                           RESULTS OUTPUT                             #####
+################################################################################
+
+# Geometry plots
+
 for i=1:iterations
     plt = plot(showaxis=false,size=(400,400))
     for line in barPlots[i]
@@ -400,14 +280,17 @@ for i=1:iterations
     sleep(0.5)
 end
 
+# Stress-strain plots
+
 for i=1:iterations
     plotfile = "metamat$i/metamat$i-plot.png"
     png(plt2[i],plotfile)
     sleep(0.5)
 end
 
-io = open("results.csv","a")
+# CSV output
 
+io = open("results.csv","w")
 writedlm(io,transpose(weights),",")
 writedlm(io,transpose(maxStrains),",")
 writedlm(io,transpose(maxSigmas),",")
@@ -415,8 +298,9 @@ writedlm(io,transpose(energyAbsorptions),",")
 writedlm(io,transpose(maxStrainsPlain),",")
 writedlm(io,transpose(maxSigmasPlain),",")
 writedlm(io,transpose(energyAbsorptionsPlain),",")
-
 close(io)
+
+# General plots over all simulations
 
 strainsPlt = plot(weights,maxStrains, seriestype = :scatter, xlabel = "Area (cm2)",ylabel = "Failure strain",label="PVA-ECC", color = :blue)
 plot!(strainsPlt, weights,maxStrainsPlain, seriestype = :scatter, label="Plain Concrete", color = :red)

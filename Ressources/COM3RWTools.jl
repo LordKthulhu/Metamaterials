@@ -52,6 +52,19 @@ function loadLine(n,F)
     "LOAD " * " "^(5-length(sn)) * sn * "   0.00000   0.00000" * " "^(10-length(sf)) * sf * "\n"
 end
 
+function addSteps(loadPoints, step, dEpsilonMax, unitSize, filename)
+    datFile = open("$filename.dat","a")
+    for i=1:10
+        timeStr = @sprintf("%.4f",0.001*(step+i))
+        write(datFile, "STEP " * " "^(5-length(string(step+i)))*string(step+i) * " "^(10-length(timeStr))*timeStr * "     0.000     0.000     0.000                                             0.000\n")
+        for load in loadPoints
+            write(datFile, loadLine(load[1], 12*(H-1)*unitSize*dEpsilonMax * load[2]))
+        end
+    end
+    write(datFile, "END\n")
+    close(datFile)
+end
+
 ################################################################################
 #####                           READING TOOLS                              #####
 ################################################################################

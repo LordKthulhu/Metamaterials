@@ -12,6 +12,10 @@ include("Ressources/geometryTools.jl")
 
 ENV["GKSwstype"] = "100"
 
+function pBar(len,text; dt=1)
+    Progress(len, dt = dt, desc = text , barglyphs=BarGlyphs('|','█', ['▁' ,'▂' ,'▃' ,'▄' ,'▅' ,'▆', '▇'],' ','|',), barlen=20)
+end
+
 function runSteps(strain, sigmaOverall, filename, dEpsilonMax,loadPoints,maxOverall,exit,sigmaOverallPlain)
 
     nSteps = length(strain)
@@ -90,7 +94,6 @@ global weights = zeros(iterations)
 global plt2 = [plot() for i in 1:iterations]
 
 global barPlots = [[] for i in 1:iterations]
-progress = Progress(iterations, dt = 1, desc = "Computing progress... " , barglyphs=BarGlyphs('|','█', ['▁' ,'▂' ,'▃' ,'▄' ,'▅' ,'▆', '▇'],' ','|',), barlen=20)
 
 const unitSize = 1
 const dEpsilonMax = 2e-4
@@ -124,6 +127,8 @@ end
 ################################################################################
 #####                             MAIN LOOP                                #####
 ################################################################################
+
+progress = pBar(iterations,"Computing progess... ")
 
 Threads.@threads for iter = 1:iterations
     filename = "metamat" * string(iter)
@@ -271,12 +276,15 @@ end
 
 # Geometry plots
 
+progress = pBar(2*iterations,"Plotting...          ",dt=0.5)
+
 for i=1:iterations
     plt = plot(showaxis=false,size=(400,400))
     for line in barPlots[i]
         plot!(plt, line[1], line[2], lw =3, lc = :black, label = false)
     end
     png(plt,"metamat"*string(i)*"/metamat"*string(i)*"-barplot.png")
+    next!(progress)
     sleep(0.5)
 end
 
@@ -285,6 +293,7 @@ end
 for i=1:iterations
     plotfile = "metamat$i/metamat$i-plot.png"
     png(plt2[i],plotfile)
+    next!(progress)
     sleep(0.5)
 end
 

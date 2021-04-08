@@ -6,6 +6,8 @@ using Glob
 using Dates
 using ProgressMeter
 
+ENV["GKSwstype"] = "100"
+
 function execute(cmd::Cmd)
   out = Pipe()
   err = Pipe()
@@ -282,7 +284,7 @@ Threads.@threads for iter = 1:iterations
 
         run(`mkdir $filename $filename-plain`)
         datFile = open("$filename.dat","w")
-        write(datFile, "Metamaterial Project\n1202000001000000000000002     0.700     0.000     0.000         0\nNODE\n")
+        write(datFile, "Metamaterial Project\n1202000001000200000000002     0.700     0.000     0.000         0\nNODE\n")
 
         for index in findall(nodes)
             i = index[1]; j = index[2]
@@ -363,7 +365,7 @@ Threads.@threads for iter = 1:iterations
         lines = readlines("$filename.dat",keep=true)
         for i=1:length(lines)
             if i == 2
-                write(auxFile,"1212000001000000000000002     0.700     0.000     0.000         0\n")
+                write(auxFile,"1212000001000200000000002     0.700     0.000     0.000         0\n")
             else
                 write(auxFile,lines[i])
             end
@@ -374,7 +376,7 @@ Threads.@threads for iter = 1:iterations
         lines = readlines("$filename-plain.dat",keep=true)
         for i=1:length(lines)
             if i == 2
-                write(auxFilePlain,"1212000001000000000000002     0.700     0.000     0.000         0\n")
+                write(auxFilePlain,"1212000001000200000000002     0.700     0.000     0.000         0\n")
             else
                 write(auxFilePlain,lines[i])
             end

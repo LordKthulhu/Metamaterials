@@ -22,15 +22,14 @@ function nodeLine(n,x,y,z,loadPoints)
     "NODE " * " "^(5-length(sn)) * sn * " "^(10-length(sx)) * sx * " "^(10-length(sy)) * sy * " "^(10-length(sz)) * sz * "                    " * join(restraint) * "\n"
 end
 
-function elementLine(n,P)
+function elementLine(n,P, compressive, tensile)
 
-    sn = string(n)
-    P = string.(P)
+    sn = string(n); P = string.(P); sTensile = @sprintf("%.2f",10*tensile); sCompressive = @sprintf("%.2f",10*compressive)
 
     "PLAT " *" "^(5-length(sn)) * sn * " "^(5-length(P[1])) * P[1] * " "^(5-length(P[2])) * P[2] * " "^(5-length(P[3])) * P[3] *
     " "^(5-length(P[4])) * P[4] * "    0    0    0    0    0    0    0    0    0\n" *
     "    0    0    0    0    0    0    0    3       0.0       1.0    3000.0 0.0025000       0.0                                                                                                         0.005     0.046       0.8\n" *
-    "    450.00    48.000      0.17    0\n" *
+    " "^(10-length(sCompressive)) * sCompressive * " "^(10-length(sTensile)) * sTensile * "      0.17    0\n" *
     " 2100000.0    4000.0   0.00000 2100000.0    4000.0   0.00000       0.0       0.0       0.0\n"
 end
 

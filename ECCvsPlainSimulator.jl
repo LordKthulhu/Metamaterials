@@ -73,10 +73,13 @@ Threads.@threads for iter = 1:iterations
     filename = "metamat" * string(iter)
 
     strain = []
+    strainPlain = []
     stress = []
+    stressPlain = []
     exit = 1
+    exitPlain = 1
 
-    while exit == 1
+    while exit == 1 || exitPlain == 1
 
         nodes = falses(H, H)
         links = falses(H, H, 4)
@@ -97,20 +100,21 @@ Threads.@threads for iter = 1:iterations
 
         # Main files
 
-        run(`mkdir $filename`)
+        run(`mkdir $filename $filename-plain`)
         datFile = open("$filename.dat","w")
         write(datFile, "Metamaterial Project\n1202000001000200000000002     0.700     0.000     0.000         0\nNODE\n")
         writeNodes(nodes, links, datFile, basePoints, loadPoints, H, unitSize)
         write(datFile, "ELEM\n")
-        if randomMat
-            tensile = round(3+2*rand(),digits=2)
-            compressive = round(30+20*rand(),digits=2)
-            writeElements(nodes, links, datFile, baseElements, H; compressive=compressive, tensile=tensile)
-        else
-            writeElements(nodes, links, datFile, baseElements, H)
-        end
-        write(datFile, "LOAD\n\n")
         close(datFile)
+        run(`cp $filename.dat $filename-plain.dat`)
+        datFile = open("$filename.dat","a")
+        datFilePlain = open("$filename-plain.dat","a")
+        writeElements(nodes, links, datFile, baseElements, H)
+        writeElementsPlain(nodes, links, datFilePlain, baseElements, H)
+        write(datFile, "LOAD\n\n")
+        write(datFilePlain, "LOAD\n\n")
+        close(datFile)
+        close(datFilePlain)
 
         # File with restart option
 
@@ -125,28 +129,49 @@ Threads.@threads for iter = 1:iterations
         end
         close(auxFile)
 
+        auxFilePlain = open("$filename-plain-restart.aux","w")
+        lines = readlines("$filename-plain.dat",keep=true)
+        for i=1:length(lines)
+            if i == 2
+                write(auxFilePlain,"1212000001000200000000002     0.700     0.000     0.000         0\n")
+            else
+                write(auxFilePlain,lines[i])
+            end
+        end
+        close(auxFilePlain)
+
         ########################################################################
         #####                        SIMULATIONS                           #####
         ########################################################################
 
         strain = []
+        strainPlain = []
         stress = []
+        stressPlain = []
         time = 0
         startStep = 0
+        startStepPlain = 0
 
         maxStress, startStep, exit = runSteps(strain, stress, startStep, filename, dEpsilonMax, loadPoints)
+        maxStressPlain, startStepPlain, exitPlain = runSteps(strainPlain, stressPlain, startStepPlain, filename * "-plain", dEpsilonMax, loadPoints)
+
 
         while stress[end]/maxStress > 0.5 && exit == 0
             maxStress, startStep, exit = runSteps(strain, stress, startStep, filename, dEpsilonMax, loadPoints)
+            if exitPlain == 0
+                maxStressPlain, startStepPlain, exitPlain = runSteps(strainPlain, stressPlain, startStepPlain, filename * "-plain", dEpsilonMax, loadPoints)
+            end
         end
 
         mechFiles = glob("$(filename)/MECHIFI*")
         run(`rm $mechFiles`)
+        mechFiles = glob("$(filename)-plain/MECHIFI*")
+        run(`rm $mechFiles`)
         weights[iter] = sum(nodes .* nodeWeights) + sum(links .* linkWeights)
 
-        if exit == 1
+        if exit == 1 || exitPlain == 1
             println("Simulation $iter failed. Starting over.")
-            run(`rm -r $filename`)
+            run(`rm -r $filename $filename-plain`)
         end
     end
 
@@ -157,11 +182,16 @@ Threads.@threads for iter = 1:iterations
 
     #strain = strain[1:end-1]
     maxStress,index = findmax(stress)
+    maxStressPlain,indexPlain = findmax(stressPlain)
 
     MaxStresses[iter] = maxStress
     maxStrains[iter] = strain[index]
+    MaxStressesPlain[iter] = maxStressPlain
+    maxStrainsPlain[iter] = strainPlain[indexPlain]
 
     energyAbsorptions[iter] = energy(strain[1:index],stress[1:index])
+    energyAbsorptionsPlain[iter] = energy(strainPlain[1:indexPlain],stressPlain[1:indexPlain])
+
 
     io = open(filename*"/"*filename*"-results.csv","a")
 
@@ -170,8 +200,9 @@ Threads.@threads for iter = 1:iterations
     close(io)
 
     plt2[iter] = plot(strain,stress, lw = 3, ylabel = "Overall Stress (kg/cm2)",lc="green", label="PVA-ECC")
+    plot!(plt2[iter],strainPlain,stressPlain, lw = 3, lc="red", label="Plain Concrete")
 
-    run(`rm $filename-restart.aux`)
+    run(`rm $filename-restart.aux $filename-plain-restart.aux`)
     next!(progress)
 end
 
@@ -209,17 +240,23 @@ writedlm(io,transpose(weights),",")
 writedlm(io,transpose(maxStrains),",")
 writedlm(io,transpose(MaxStresses),",")
 writedlm(io,transpose(energyAbsorptions),",")
+writedlm(io,transpose(maxStrainsPlain),",")
+writedlm(io,transpose(MaxStressesPlain),",")
+writedlm(io,transpose(energyAbsorptionsPlain),",")
 close(io)
 
 # General plots over all simulations
 
 strainsPlt = plot(weights,maxStrains, seriestype = :scatter, xlabel = "Area (cm2)",ylabel = "Failure strain",label="PVA-ECC", color = :blue)
+plot!(strainsPlt, weights,maxStrainsPlain, seriestype = :scatter, label="Plain Concrete", color = :red)
 png(strainsPlt,"strains.png")
 
 sleep(0.5)
 stressPlt = plot(weights,MaxStresses, seriestype = :scatter, xlabel = "Area (cm2)",ylabel = "Failure stress",label="PVA-ECC", color = :blue)
+plot!(stressPlt, weights,MaxStressesPlain, seriestype = :scatter, label="Plain Concrete", color = :red)
 png(stressPlt,"stresses.png")
 
 sleep(0.5)
 energyPlt = plot(weights,energyAbsorptions, seriestype = :scatter, xlabel = "Area (cm2)",ylabel = "Absorbed energy at failure",label="PVA-ECC", color = :blue)
+plot!(energyPlt, weights, energyAbsorptionsPlain, seriestype = :scatter, label="Plain Concrete", color = :red)
 png(energyPlt,"energies.png")

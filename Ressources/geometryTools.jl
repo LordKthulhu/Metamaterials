@@ -91,31 +91,31 @@ function writeNodes(nodes, links, datFile, basePoints, loadPoints, H, unitSize)
     end
 end
 
-function writeElements(nodes, links, datFile, baseElements, H)
+function writeElements(nodes, links, datFile, baseElements, H; compressive = 45.0, tensile = 4.8)
     for index in findall(nodes)
         nodeNumber = index[2] + H*(index[1]-1)
         startingPoint = 145*(nodeNumber-1)
         startingElement = 112*(nodeNumber-1)
         for elementNumber in 1:32
-            write(datFile,elementLine( startingElement + elementNumber, startingPoint .+ baseElements[elementNumber,2:end] ))
+            write(datFile,elementLine( startingElement + elementNumber, startingPoint .+ baseElements[elementNumber,2:end], compressive, tensile ))
         end
         for link in findall(links[index[1], index[2],:])
             if link == 1
                 for elementNumber in 33:56
-                    write(datFile,elementLine( startingElement + elementNumber, startingPoint .+ baseElements[elementNumber,2:end] ))
+                    write(datFile,elementLine( startingElement + elementNumber, startingPoint .+ baseElements[elementNumber,2:end], compressive, tensile ))
 
                 end
             elseif link == 2
                 for elementNumber in 57:72
-                    write(datFile,elementLine( startingElement + elementNumber, startingPoint .+ baseElements[elementNumber,2:end] ))
+                    write(datFile,elementLine( startingElement + elementNumber, startingPoint .+ baseElements[elementNumber,2:end], compressive, tensile ))
                 end
             elseif link == 3
                 for elementNumber in 73:96
-                    write(datFile,elementLine( startingElement + elementNumber, startingPoint .+ baseElements[elementNumber,2:end] ))
+                    write(datFile,elementLine( startingElement + elementNumber, startingPoint .+ baseElements[elementNumber,2:end], compressive, tensile ))
                 end
             else
                 for elementNumber in 97:112
-                    write(datFile,elementLine( startingElement + elementNumber, startingPoint .+ baseElements[elementNumber,2:end] ))
+                    write(datFile,elementLine( startingElement + elementNumber, startingPoint .+ baseElements[elementNumber,2:end], compressive, tensile ))
                 end
             end
         end

@@ -6,7 +6,7 @@ using Glob
 using Dates
 using ProgressMeter
 
-include("Ressources/consoleTools.jl")
+include("Ressources/simulationTools.jl")
 include("Ressources/COM3RWTools.jl")
 include("Ressources/geometryTools.jl")
 
@@ -14,67 +14,6 @@ ENV["GKSwstype"] = "100"
 
 function pBar(len,text; dt=1)
     Progress(len, dt = dt, desc = text , barglyphs=BarGlyphs('|','█', ['▁' ,'▂' ,'▃' ,'▄' ,'▅' ,'▆', '▇'],' ','|',), barlen=20)
-end
-
-function runSteps(strain, sigmaOverall, filename, dEpsilonMax,loadPoints,maxOverall,exit,sigmaOverallPlain)
-
-    nSteps = length(strain)
-
-    run(`cp $(filename)-restart.aux $(filename).dat`)
-    datFile = open(filename * ".dat","a")
-
-    loadRange = [ strain[end]+i*dEpsilonMax for i=1:5 ]
-
-    for i=1:5
-        time = 0.001*(nSteps+i)
-        timeStr = @sprintf("%.4f",time)
-        write(datFile, "STEP " * " "^(5-length(string(i+nSteps)))*string(i+nSteps) * " "^(10-length(timeStr))*timeStr * "     0.000     0.000     0.000                                             0.000\n")
-        for load in loadPoints
-            write(datFile, loadLine(load[1], 12*(H-1)*unitSize*dEpsilonMax * load[2]))
-        end
-    end
-    write(datFile, "END\n")
-    close(datFile)
-
-    run(`cp $(filename)-plain-restart.aux $(filename)-plain.dat`)
-    datFile = open(filename * "-plain.dat","a")
-
-    loadRange = [ strain[end]+i*dEpsilonMax for i=1:5 ]
-
-    for i=1:5
-        time = 0.001*(nSteps+i)
-        timeStr = @sprintf("%.4f",time)
-        write(datFile, "STEP " * " "^(5-length(string(i+nSteps)))*string(i+nSteps) * " "^(10-length(timeStr))*timeStr * "     0.000     0.000     0.000                                             0.000\n")
-        for load in loadPoints
-            write(datFile, loadLine(load[1], 12*(H-1)*unitSize*dEpsilonMax * load[2]))
-        end
-    end
-    write(datFile, "END\n")
-    close(datFile)
-
-    run(`mv $filename.dat $filename`)
-    exit = execute(`./runCOM3.sh $filename`)
-
-    run(`mv $filename-plain.dat $filename-plain`)
-    exit = execute(`./runCOM3.sh $filename-plain`)
-
-    forces = forceSteps(filename)
-
-    forcesPlain = forceSteps(filename*"-plain")
-
-    append!(strain, loadRange[1:length(forces)])
-    append!(sigmaOverall, forces./area)
-    append!(sigmaOverallPlain, forcesPlain./area)
-
-    max(maxOverall,maximum(sigmaOverall[end-5:end]))
-end
-
-function energy(strain,sigmaOverall)
-    energy = 0
-    for i=2:length(strain)
-        energy += 1/2*(sigmaOverall[i]+sigmaOverall[i-1])*(strain[i]-strain[i-1])
-    end
-    energy
 end
 
 #### MAIN ####
@@ -85,8 +24,8 @@ const H,iterations,randomMat = parseArguments()
 
 global maxStrains = zeros(iterations)
 global maxStrainsPlain = zeros(iterations)
-global maxSigmas = zeros(iterations)
-global maxSigmasPlain = zeros(iterations)
+global MaxStresses = zeros(iterations)
+global MaxStressesPlain = zeros(iterations)
 global energyAbsorptions = zeros(iterations)
 global energyAbsorptionsPlain = zeros(iterations)
 global weights = zeros(iterations)
@@ -134,12 +73,13 @@ Threads.@threads for iter = 1:iterations
     filename = "metamat" * string(iter)
 
     strain = []
-    sigmaIntern = []
-    sigmaOverall = []
-    sigmaOverallPlain = []
+    strainPlain = []
+    stress = []
+    stressPlain = []
     exit = 1
+    exitPlain = 1
 
-    while exit == 1
+    while exit == 1 || exitPlain == 1
 
         nodes = falses(H, H)
         links = falses(H, H, 4)
@@ -205,31 +145,22 @@ Threads.@threads for iter = 1:iterations
         ########################################################################
 
         strain = []
-        sigmaIntern = []
-        sigmaOverall = []
+        strainPlain = []
+        stress = []
+        stressPlain = []
         time = 0
-        step = 0
-        loadRange = [ i*dEpsilonMax for i=1:10 ]
+        startStep = 0
+        startStepPlain = 0
 
-        addSteps(loadPoints, step, dEpsilonMax, unitSize, filename)
-        addSteps(loadPoints, step, dEpsilonMax, unitSize, filename*"-plain")
+        maxStress, startStep, exit = runSteps(strain, stress, startStep, filename, dEpsilonMax, loadPoints)
+        maxStressPlain, startStepPlain, exitPlain = runSteps(strainPlain, stressPlain, startStepPlain, filename * "-plain", dEpsilonMax, loadPoints)
 
-        step += 10
 
-        run(`mv $filename.dat $filename`)
-        exit = execute(`./runCOM3.sh $filename`)
-
-        run(`mv $filename-plain.dat $filename-plain`)
-        execute(`./runCOM3.sh $filename-plain`)
-
-        append!(strain, loadRange)
-        append!(sigmaOverall, forceSteps(filename)./area)
-        append!(sigmaOverallPlain, forceSteps(filename*"-plain")./area)
-
-        maxOverall = maximum(sigmaOverall)
-
-        while sigmaOverall[end]/maxOverall > 0.5 && exit == 0
-            maxOverall = runSteps(strain, sigmaOverall, filename, dEpsilonMax, loadPoints,maxOverall,exit,sigmaOverallPlain)
+        while stress[end]/maxStress > 0.5 && exit == 0
+            maxStress, startStep, exit = runSteps(strain, stress, startStep, filename, dEpsilonMax, loadPoints)
+            if exitPlain == 0
+                maxStressPlain, startStepPlain, exitPlain = runSteps(strainPlain, stressPlain, startStepPlain, filename * "-plain", dEpsilonMax, loadPoints)
+            end
         end
 
         mechFiles = glob("$(filename)/MECHIFI*")
@@ -237,6 +168,11 @@ Threads.@threads for iter = 1:iterations
         mechFiles = glob("$(filename)-plain/MECHIFI*")
         run(`rm $mechFiles`)
         weights[iter] = sum(nodes .* nodeWeights) + sum(links .* linkWeights)
+
+        if exit == 1 || exitPlain == 1
+            println("Simulation $iter failed. Starting over.")
+            run(`rm -r $filename $filename-plain`)
+        end
     end
 
     ###### If all COM3 runs terminate, go on to results processing ######
@@ -244,27 +180,27 @@ Threads.@threads for iter = 1:iterations
     run(`rm $filename/$filename-MECH.crk $filename/$filename-MECH.fld
             $filename/$filename-MECH.int $filename/$filename-MECH.tmp`)
 
-    strain = strain[1:end-1]
-    maxSigma,index = findmax(sigmaOverall)
-    maxSigmaPlain,indexPlain = findmax(sigmaOverallPlain)
+    #strain = strain[1:end-1]
+    maxStress,index = findmax(stress)
+    maxStressPlain,indexPlain = findmax(stressPlain)
 
-    maxSigmas[iter] = maxSigma
+    MaxStresses[iter] = maxStress
     maxStrains[iter] = strain[index]
-    maxSigmasPlain[iter] = maxSigmaPlain
-    maxStrainsPlain[iter] = strain[indexPlain]
+    MaxStressesPlain[iter] = maxStressPlain
+    maxStrainsPlain[iter] = strainPlain[indexPlain]
 
-    energyAbsorptions[iter] = energy(strain[1:index],sigmaOverall[1:index])
-    energyAbsorptionsPlain[iter] = energy(strain[1:indexPlain],sigmaOverallPlain[1:indexPlain])
+    energyAbsorptions[iter] = energy(strain[1:index],stress[1:index])
+    energyAbsorptionsPlain[iter] = energy(strainPlain[1:indexPlain],stressPlain[1:indexPlain])
 
 
     io = open(filename*"/"*filename*"-results.csv","a")
 
     writedlm(io,transpose(strain),",")
-    writedlm(io,transpose(sigmaOverall),",")
+    writedlm(io,transpose(stress),",")
     close(io)
 
-    plt2[iter] = plot(strain,sigmaOverall, lw = 3, ylabel = "Overall Stress (kg/cm2)",lc="green", label="PVA-ECC")
-    plot!(plt2[iter],strain,sigmaOverallPlain, lw = 3, lc="red", label="Plain Concrete")
+    plt2[iter] = plot(strain,stress, lw = 3, ylabel = "Overall Stress (kg/cm2)",lc="green", label="PVA-ECC")
+    plot!(plt2[iter],strainPlain,stressPlain, lw = 3, lc="red", label="Plain Concrete")
 
     run(`rm $filename-restart.aux $filename-plain-restart.aux`)
     next!(progress)
@@ -299,13 +235,13 @@ end
 
 # CSV output
 
-io = open("results.csv","w")
+io = open("results.csv","a")
 writedlm(io,transpose(weights),",")
 writedlm(io,transpose(maxStrains),",")
-writedlm(io,transpose(maxSigmas),",")
+writedlm(io,transpose(MaxStresses),",")
 writedlm(io,transpose(energyAbsorptions),",")
 writedlm(io,transpose(maxStrainsPlain),",")
-writedlm(io,transpose(maxSigmasPlain),",")
+writedlm(io,transpose(MaxStressesPlain),",")
 writedlm(io,transpose(energyAbsorptionsPlain),",")
 close(io)
 
@@ -316,8 +252,8 @@ plot!(strainsPlt, weights,maxStrainsPlain, seriestype = :scatter, label="Plain C
 png(strainsPlt,"strains.png")
 
 sleep(0.5)
-stressPlt = plot(weights,maxSigmas, seriestype = :scatter, xlabel = "Area (cm2)",ylabel = "Failure stress",label="PVA-ECC", color = :blue)
-plot!(stressPlt, weights,maxSigmasPlain, seriestype = :scatter, label="Plain Concrete", color = :red)
+stressPlt = plot(weights,MaxStresses, seriestype = :scatter, xlabel = "Area (cm2)",ylabel = "Failure stress",label="PVA-ECC", color = :blue)
+plot!(stressPlt, weights,MaxStressesPlain, seriestype = :scatter, label="Plain Concrete", color = :red)
 png(stressPlt,"stresses.png")
 
 sleep(0.5)

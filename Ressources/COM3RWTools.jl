@@ -52,9 +52,10 @@ function loadLine(n,F)
     "LOAD " * " "^(5-length(sn)) * sn * "   0.00000   0.00000" * " "^(10-length(sf)) * sf * "\n"
 end
 
-function addSteps(loadPoints, step, dEpsilonMax, unitSize, filename)
+function addSteps(loadPoints, step, dEpsilonMax, unitSize, filename; restart = true, nSteps = 5)
+    restart ? run(`cp $(filename)-restart.aux $(filename).dat`) : nothing
     datFile = open("$filename.dat","a")
-    for i=1:10
+    for i=1:nSteps
         timeStr = @sprintf("%.4f",0.001*(step+i))
         write(datFile, "STEP " * " "^(5-length(string(step+i)))*string(step+i) * " "^(10-length(timeStr))*timeStr * "     0.000     0.000     0.000                                             0.000\n")
         for load in loadPoints

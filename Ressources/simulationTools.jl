@@ -39,3 +39,34 @@ function parseArguments()
     (@isdefined randomMat) ? nothing : randomMat = false
     (H,iterations,randomMat)
 end
+
+function runSteps(strain, stress, startStep, filename, dEpsilonMax, loadPoints)
+
+    if startStep == 0
+        restart = false; nSteps = 10
+    else
+        restart = true; nSteps = 5
+    end
+
+    addSteps(loadPoints, startStep, dEpsilonMax, unitSize, filename, restart = restart, nSteps = nSteps)
+
+    run(`mv $filename.dat $filename`)
+    exit = execute(`./runCOM3.sh $filename`)
+
+    forces = forceSteps(filename)
+    loadRange = [ (length(strain)+i)*dEpsilonMax for i=1:nSteps ]
+
+    append!(strain, loadRange[1:length(forces)])
+    append!(stress, forces./area)
+    startStep += nSteps
+
+    maximum(stress), startStep, exit
+end
+
+function energy(strain,stress)
+    energy = 0
+    for i=2:length(strain)
+        energy += 1/2*(stress[i]+stress[i-1])*(strain[i]-strain[i-1])
+    end
+    energy
+end

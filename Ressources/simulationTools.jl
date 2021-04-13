@@ -1,5 +1,9 @@
 # Tools for parsing arguments and executing bash scripts
 
+function pBar(len,text; dt=1)
+    Progress(len, dt = dt, desc = text , barglyphs=BarGlyphs('|','█', ['▁' ,'▂' ,'▃' ,'▄' ,'▅' ,'▆', '▇'],' ','|',), barlen=20)
+end
+
 function execute(cmd::Cmd)
   out = Pipe()
   err = Pipe()
@@ -24,11 +28,15 @@ function parseArguments()
         elseif ARGS[currentArg] == "-patternsize"
             H = parse(Int,ARGS[currentArg+1])
             currentArg += 2
+        elseif ARGS[currentArg] == "-parametric"
+            H = parse(Int,ARGS[currentArg+1])
+            currentArg += 2
         elseif ARGS[currentArg] == "-help"
             println("Supported arguments are:\n
                -batchsize            Specify the number of desired simulations\n
-               -material-random      base-material will be randomly picked\n
-               -patternsize          size of the pattern grid (default is 3)\n")
+               -material-random      Base-material will be randomly picked\n
+               -patternsize          Size of the pattern grid (default is 3)\n
+               -parametric           Please specify a parameters file for parametric study.\n")
             exit(0)
         else
             throw(ArgumentError("Unsupported argument : $(ARGS[currentArg]). For available arguments, type -help."))
@@ -37,7 +45,8 @@ function parseArguments()
     (@isdefined H) ? nothing : H = 3
     (@isdefined iterations) ? nothing : iterations = 1
     (@isdefined randomMat) ? nothing : randomMat = false
-    (H,iterations,randomMat)
+    (@isdefined parameters) ? nothing : parameters = "none"
+    (H,iterations,randomMat,parameters)
 end
 
 function runSteps(simulation)

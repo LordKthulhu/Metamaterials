@@ -15,6 +15,7 @@ struct Element
 end
 
 struct Material
+    isECC::Bool
     compressive::Float64
     tensile::Float64
 end
@@ -132,8 +133,8 @@ mutable struct Simulation
     stress::Vector{Float64}
 end
 
-function emptySimulation(iter::Int,dEpsilon::Float64)
-    return Simulation("metamat$iter",Model([],[],[],[],0,0,Material(0,0)),dEpsilon,0,1,[],[])
+function emptySimulation(iter,dEpsilon::Float64)
+    return Simulation("metamat$iter",Model([],[],[],[],0,0,Material(true,0,0)),dEpsilon,0,1,[],[])
 end
 
 function runSimulation(simulation::Simulation)

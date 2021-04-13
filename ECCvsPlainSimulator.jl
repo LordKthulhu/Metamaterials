@@ -6,203 +6,72 @@ using Glob
 using Dates
 using ProgressMeter
 
+include("Ressources/structures.jl")
 include("Ressources/simulationTools.jl")
 include("Ressources/COM3RWTools.jl")
+
+const H,iterations,randomMat = parseArguments()
+const unitSize = 1
+const dEpsilon = 2e-4
+const area = 12*(H-1)*unitSize*1.0
+
 include("Ressources/geometryTools.jl")
 
 ENV["GKSwstype"] = "100"
+barPlots = [[] for i in 1:iterations]
 
-function pBar(len,text; dt=1)
-    Progress(len, dt = dt, desc = text , barglyphs=BarGlyphs('|','█', ['▁' ,'▂' ,'▃' ,'▄' ,'▅' ,'▆', '▇'],' ','|',), barlen=20)
-end
-
-#### MAIN ####
-
-const H,iterations,randomMat = parseArguments()
+simulations = [ emptySimulation(iter,dEpsilon) for iter in 1:iterations ]
+simulationsPlain = [ emptySimulation("plain$iter",dEpsilon) for iter in 1:iterations ]
 
 @printf("Starting %d simulations on %d threads.\n",iterations,Threads.nthreads())
 
-global maxStrains = zeros(iterations)
-global maxStrainsPlain = zeros(iterations)
-global MaxStresses = zeros(iterations)
-global MaxStressesPlain = zeros(iterations)
-global energyAbsorptions = zeros(iterations)
-global energyAbsorptionsPlain = zeros(iterations)
-global weights = zeros(iterations)
-
-global plt2 = [plot() for i in 1:iterations]
-
-global barPlots = [[] for i in 1:iterations]
-
-const unitSize = 1
-const dEpsilonMax = 2e-4
-const area = 12*(H-1)*unitSize*1.0
-
-nodeWeights = [4*ones(1,H);8*ones(H-2,H);4*ones(1,H)]
-
-nodeWeights[:,1] = 4*ones(H); nodeWeights[:,end] = 4*ones(H)
-nodeWeights[1,1] = 2; nodeWeights[1,end] = 2; nodeWeights[end,1] = 2; nodeWeights[end,end] = 2
-nodeWeights = unitSize^2 .* nodeWeights
-
-linkWeights = zeros(H,H,4)
-linkWeights[:,:,1] = (20*sqrt(2)-2)*unitSize^2 .* ones(H,H); linkWeights[:,:,3] = (20*sqrt(2)-2)*unitSize^2 .* ones(H,H)
-linkWeights[:,:,2] = (20-4*sqrt(2))*unitSize^2 .* ones(H,H); linkWeights[:,:,4] = (20-4*sqrt(2))*unitSize^2 .* ones(H,H)
-
-basePoints = readdlm("Ressources/points.csv",',')
-baseElements = readdlm("Ressources/elements.csv",',',Int)
-
-for index in findall(x -> x > 1000, baseElements)
-    if baseElements[index] < 2000
-        baseElements[index] = baseElements[index]%1000 + (H-1)*145
-    elseif baseElements[index] < 3000
-        baseElements[index] = baseElements[index]%2000 + H*145
-    elseif baseElements[index] < 4000
-        baseElements[index] = baseElements[index]%3000 + (H+1)*145
-    else
-        baseElements[index] = baseElements[index]%4000 + 145
-    end
-end
-
 ################################################################################
-#####                             MAIN LOOP                                #####
+#####                            SIMULATIONS                               #####
 ################################################################################
 
 progress = pBar(iterations,"Computing progess... ")
 
 Threads.@threads for iter = 1:iterations
-    filename = "metamat" * string(iter)
 
-    strain = []
-    strainPlain = []
-    stress = []
-    stressPlain = []
-    exit = 1
-    exitPlain = 1
+    while simulations[iter].exit == 1
 
-    while exit == 1 || exitPlain == 1
+        skeleton = randomSkeleton(H)
+        plotGeometry(barPlots,iter,skeleton) # Adding data for geometry plot
 
-        nodes = falses(H, H)
-        links = falses(H, H, 4)
-        potLinks = trues(H, H, 4)
-        loadPoints = []
-
-        potLinks[:,1,1] = falses(H)
-        potLinks[:,H,3:4] = falses(H,2)
-        potLinks[H,:,:] = falses(H,4)
-
-        randomGeometry(H,nodes,links,potLinks) # Geometry generation
-
-        plotGeometry(barPlots,iter,links,H) # Adding data for geometry plot
-
-        ########################################################################
-        #####                   COM3 FILES GENERATION                      #####
-        ########################################################################
-
-        # Main files
-
-        run(`mkdir $filename $filename-plain`)
-        datFile = open("$filename.dat","w")
-        write(datFile, "Metamaterial Project\n1202000001000200000000002     0.700     0.000     0.000         0\nNODE\n")
-        writeNodes(nodes, links, datFile, basePoints, loadPoints, H, unitSize)
-        write(datFile, "ELEM\n")
-        close(datFile)
-        run(`cp $filename.dat $filename-plain.dat`)
-        datFile = open("$filename.dat","a")
-        datFilePlain = open("$filename-plain.dat","a")
-        writeElements(nodes, links, datFile, baseElements, H)
-        writeElementsPlain(nodes, links, datFilePlain, baseElements, H)
-        write(datFile, "LOAD\n\n")
-        write(datFilePlain, "LOAD\n\n")
-        close(datFile)
-        close(datFilePlain)
-
-        # File with restart option
-
-        auxFile = open("$filename-restart.aux","w")
-        lines = readlines("$filename.dat",keep=true)
-        for i=1:length(lines)
-            if i == 2
-                write(auxFile,"1212000001000200000000002     0.700     0.000     0.000         0\n")
-            else
-                write(auxFile,lines[i])
-            end
-        end
-        close(auxFile)
-
-        auxFilePlain = open("$filename-plain-restart.aux","w")
-        lines = readlines("$filename-plain.dat",keep=true)
-        for i=1:length(lines)
-            if i == 2
-                write(auxFilePlain,"1212000001000200000000002     0.700     0.000     0.000         0\n")
-            else
-                write(auxFilePlain,lines[i])
-            end
-        end
-        close(auxFilePlain)
-
-        ########################################################################
-        #####                        SIMULATIONS                           #####
-        ########################################################################
-
-        strain = []
-        strainPlain = []
-        stress = []
-        stressPlain = []
-        time = 0
-        startStep = 0
-        startStepPlain = 0
-
-        maxStress, startStep, exit = runSteps(strain, stress, startStep, filename, dEpsilonMax, loadPoints)
-        maxStressPlain, startStepPlain, exitPlain = runSteps(strainPlain, stressPlain, startStepPlain, filename * "-plain", dEpsilonMax, loadPoints)
-
-
-        while stress[end]/maxStress > 0.5 && exit == 0
-            maxStress, startStep, exit = runSteps(strain, stress, startStep, filename, dEpsilonMax, loadPoints)
-            if exitPlain == 0
-                maxStressPlain, startStepPlain, exitPlain = runSteps(strainPlain, stressPlain, startStepPlain, filename * "-plain", dEpsilonMax, loadPoints)
-            end
+        if randomMat
+            tensile = round(3+2*rand(),digits=2)
+            compressive = round(30+20*rand(),digits=2)
+            material = Material(true,compressive,tensile)
+            materialPlain = Material(false,compressive,tensile)
+        else
+            material = Material(true,45.0,4.8)
+            materialPlain = Material(false,45.0,4.8)
         end
 
-        mechFiles = glob("$(filename)/MECHIFI*")
-        run(`rm $mechFiles`)
-        mechFiles = glob("$(filename)-plain/MECHIFI*")
-        run(`rm $mechFiles`)
-        weights[iter] = sum(nodes .* nodeWeights) + sum(links .* linkWeights)
+        model = modelFromSkeleton(skeleton, material, unitSize, nodeWeights, linkWeights)
+        modelPlain = modelFromSkeleton(skeleton, materialPlain, unitSize, nodeWeights, linkWeights)
 
-        if exit == 1 || exitPlain == 1
-            println("Simulation $iter failed. Starting over.")
-            run(`rm -r $filename $filename-plain`)
-        end
+        simulations[iter].model = model
+        simulationsPlain[iter].model = modelPlain
+
+        runSimulation(simulations[iter])
+        runSimulation(simulationsPlain[iter])
     end
 
-    ###### If all COM3 runs terminate, go on to results processing ######
-
+    filename = simulations[iter].filename
     run(`rm $filename/$filename-MECH.crk $filename/$filename-MECH.fld
-            $filename/$filename-MECH.int $filename/$filename-MECH.tmp`)
-
-    #strain = strain[1:end-1]
-    maxStress,index = findmax(stress)
-    maxStressPlain,indexPlain = findmax(stressPlain)
-
-    MaxStresses[iter] = maxStress
-    maxStrains[iter] = strain[index]
-    MaxStressesPlain[iter] = maxStressPlain
-    maxStrainsPlain[iter] = strainPlain[indexPlain]
-
-    energyAbsorptions[iter] = energy(strain[1:index],stress[1:index])
-    energyAbsorptionsPlain[iter] = energy(strainPlain[1:indexPlain],stressPlain[1:indexPlain])
-
-
+            $filename/$filename-MECH.int $filename/$filename-MECH.tmp $filename-restart.aux`)
     io = open(filename*"/"*filename*"-results.csv","a")
-
-    writedlm(io,transpose(strain),",")
-    writedlm(io,transpose(stress),",")
+    writedlm(io,transpose(simulations[iter].strain),",")
+    writedlm(io,transpose(simulations[iter].stress),",")
     close(io)
-
-    plt2[iter] = plot(strain,stress, lw = 3, ylabel = "Overall Stress (kg/cm2)",lc="green", label="PVA-ECC")
-    plot!(plt2[iter],strainPlain,stressPlain, lw = 3, lc="red", label="Plain Concrete")
-
-    run(`rm $filename-restart.aux $filename-plain-restart.aux`)
+    filename = simulationsPlain[iter].filename
+    run(`rm $filename/$filename-MECH.crk $filename/$filename-MECH.fld
+            $filename/$filename-MECH.int $filename/$filename-MECH.tmp $filename-restart.aux`)
+    io = open(filename*"/"*filename*"-results.csv","a")
+    writedlm(io,transpose(simulations[iter].strain),",")
+    writedlm(io,transpose(simulations[iter].stress),",")
+    close(io)
     next!(progress)
 end
 
@@ -221,27 +90,37 @@ for i=1:iterations
     end
     png(plt,"metamat"*string(i)*"/metamat"*string(i)*"-barplot.png")
     next!(progress)
-    sleep(0.5)
+    sleep(0.1)
 end
 
 # Stress-strain plots
 
 for i=1:iterations
     plotfile = "metamat$i/metamat$i-plot.png"
-    png(plt2[i],plotfile)
+    plt = plot(simulations[i].strain,simulations[i].stress, lw = 3, ylabel = "Overall Stress (kg/cm2)",lc="green", label="PVA-ECC")
+    plot!(plt,simulationsPlain[i].strain,simulationsPlain[i].stress, lw = 3,lc="red", label="Plain Concrete")
+    png(plt,plotfile)
     next!(progress)
-    sleep(0.5)
+    sleep(0.1)
 end
 
 # CSV output
 
+weights = [ simulation.model.weight for simulation in simulations ]
+maxStrains = [ maximum(simulation.strain) for simulation in simulations ]
+maxStresses = [ maximum(simulation.stress) for simulation in simulations ]
+energyAbsorptions = [ energy(simulation.strain,simulation.stress) for simulation in simulations ]
+maxStrainsPlain = [ maximum(simulation.strain) for simulation in simulationsPlain ]
+maxStressesPlain = [ maximum(simulation.stress) for simulation in simulationsPlain ]
+energyAbsorptionsPlain = [ energy(simulation.strain,simulation.stress) for simulation in simulationsPlain ]
+
 io = open("results.csv","a")
 writedlm(io,transpose(weights),",")
 writedlm(io,transpose(maxStrains),",")
-writedlm(io,transpose(MaxStresses),",")
+writedlm(io,transpose(maxStresses),",")
 writedlm(io,transpose(energyAbsorptions),",")
 writedlm(io,transpose(maxStrainsPlain),",")
-writedlm(io,transpose(MaxStressesPlain),",")
+writedlm(io,transpose(maxStressesPlain),",")
 writedlm(io,transpose(energyAbsorptionsPlain),",")
 close(io)
 
@@ -251,12 +130,12 @@ strainsPlt = plot(weights,maxStrains, seriestype = :scatter, xlabel = "Area (cm2
 plot!(strainsPlt, weights,maxStrainsPlain, seriestype = :scatter, label="Plain Concrete", color = :red)
 png(strainsPlt,"strains.png")
 
-sleep(0.5)
-stressPlt = plot(weights,MaxStresses, seriestype = :scatter, xlabel = "Area (cm2)",ylabel = "Failure stress",label="PVA-ECC", color = :blue)
-plot!(stressPlt, weights,MaxStressesPlain, seriestype = :scatter, label="Plain Concrete", color = :red)
+sleep(0.1)
+stressPlt = plot(weights,maxStresses, seriestype = :scatter, xlabel = "Area (cm2)",ylabel = "Failure stress",label="PVA-ECC", color = :blue)
+plot!(stressPlt, weights,maxStressesPlain, seriestype = :scatter, label="Plain Concrete", color = :red)
 png(stressPlt,"stresses.png")
 
-sleep(0.5)
+sleep(0.1)
 energyPlt = plot(weights,energyAbsorptions, seriestype = :scatter, xlabel = "Area (cm2)",ylabel = "Absorbed energy at failure",label="PVA-ECC", color = :blue)
 plot!(energyPlt, weights, energyAbsorptionsPlain, seriestype = :scatter, label="Plain Concrete", color = :red)
 png(energyPlt,"energies.png")

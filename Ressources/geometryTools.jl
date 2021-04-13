@@ -33,9 +33,10 @@ function randomGeometry(H,nodes,links,potLinks; p=0.7)
     end
 end
 
-function plotGeometry(barPlots,iter,links,H)
+function plotGeometry(barPlots,iter,skeleton)
+    H = skeleton.size
     for i in 1:H, j in 1:H
-        for index in findall(links[i,j,:])
+        for index in findall(skeleton.links[i,j,:])
             if index == 1
                 push!(barPlots[iter], [[j, j-1], [i,i+1]])
                 push!(barPlots[iter], [[j, j-1], [2*(H)-i,2*(H)-(i+1)]])
@@ -61,94 +62,94 @@ function plotGeometry(barPlots,iter,links,H)
     end
 end
 
-function writeNodes(nodes, links, datFile, basePoints, loadPoints, H, unitSize)
-    for index in findall(nodes)
-        i = index[1]; j = index[2]
-        nodeNumber = j + H*(i-1)
-        startingPoint = 145*(nodeNumber-1)
-        for pointNumber in 1:37
-            write(datFile,nodeLine( startingPoint + pointNumber, unitSize * (12*(j-1) + basePoints[pointNumber,2]), 0, unitSize * (12*(i-1) + basePoints[pointNumber,3]), loadPoints ))
-        end
-        for link in findall(links[i, j,:])
-            if link == 1
-                for pointNumber in 38:70
-                    write(datFile,nodeLine( startingPoint + pointNumber, unitSize * (12*(j-1) + basePoints[pointNumber,2]), 0, unitSize * (12*(i-1) + basePoints[pointNumber,3]), loadPoints ))
-                end
-            elseif link == 2
-                for pointNumber in 71:91
-                    write(datFile,nodeLine( startingPoint + pointNumber, unitSize * (12*(j-1) + basePoints[pointNumber,2]), 0, unitSize * (12*(i-1) + basePoints[pointNumber,3]), loadPoints ))
-                end
-            elseif link == 3
-                for pointNumber in 92:124
-                    write(datFile,nodeLine( startingPoint + pointNumber, unitSize * (12*(j-1) + basePoints[pointNumber,2]), 0, unitSize * (12*(i-1) + basePoints[pointNumber,3]), loadPoints ))
-                end
-            else
-                for pointNumber in 125:145
-                    write(datFile,nodeLine( startingPoint + pointNumber, unitSize * (12*(j-1) + basePoints[pointNumber,2]), 0, unitSize * (12*(i-1) + basePoints[pointNumber,3]), loadPoints ))
-                end
-            end
-        end
-    end
-end
-
-function writeElements(nodes, links, datFile, baseElements, H; compressive = 45.0, tensile = 4.8)
-    for index in findall(nodes)
-        nodeNumber = index[2] + H*(index[1]-1)
-        startingPoint = 145*(nodeNumber-1)
-        startingElement = 112*(nodeNumber-1)
-        for elementNumber in 1:32
-            write(datFile,elementLine( startingElement + elementNumber, startingPoint .+ baseElements[elementNumber,2:end], compressive, tensile ))
-        end
-        for link in findall(links[index[1], index[2],:])
-            if link == 1
-                for elementNumber in 33:56
-                    write(datFile,elementLine( startingElement + elementNumber, startingPoint .+ baseElements[elementNumber,2:end], compressive, tensile ))
-
-                end
-            elseif link == 2
-                for elementNumber in 57:72
-                    write(datFile,elementLine( startingElement + elementNumber, startingPoint .+ baseElements[elementNumber,2:end], compressive, tensile ))
-                end
-            elseif link == 3
-                for elementNumber in 73:96
-                    write(datFile,elementLine( startingElement + elementNumber, startingPoint .+ baseElements[elementNumber,2:end], compressive, tensile ))
-                end
-            else
-                for elementNumber in 97:112
-                    write(datFile,elementLine( startingElement + elementNumber, startingPoint .+ baseElements[elementNumber,2:end], compressive, tensile ))
-                end
-            end
-        end
-    end
-end
-
-function writeElementsPlain(nodes, links, datFile, baseElements, H)
-    for index in findall(nodes)
-        nodeNumber = index[2] + H*(index[1]-1)
-        startingPoint = 145*(nodeNumber-1)
-        startingElement = 112*(nodeNumber-1)
-        for elementNumber in 1:32
-            write(datFile,elementLinePlain( startingElement + elementNumber, startingPoint .+ baseElements[elementNumber,2:end] ))
-        end
-        for link in findall(links[index[1], index[2],:])
-            if link == 1
-                for elementNumber in 33:56
-                    write(datFile,elementLinePlain( startingElement + elementNumber, startingPoint .+ baseElements[elementNumber,2:end] ))
-
-                end
-            elseif link == 2
-                for elementNumber in 57:72
-                    write(datFile,elementLinePlain( startingElement + elementNumber, startingPoint .+ baseElements[elementNumber,2:end] ))
-                end
-            elseif link == 3
-                for elementNumber in 73:96
-                    write(datFile,elementLinePlain( startingElement + elementNumber, startingPoint .+ baseElements[elementNumber,2:end] ))
-                end
-            else
-                for elementNumber in 97:112
-                    write(datFile,elementLinePlain( startingElement + elementNumber, startingPoint .+ baseElements[elementNumber,2:end] ))
-                end
-            end
-        end
-    end
-end
+# function writeNodes(nodes, links, datFile, basePoints, loadPoints, H, unitSize)
+#     for index in findall(nodes)
+#         i = index[1]; j = index[2]
+#         nodeNumber = j + H*(i-1)
+#         startingPoint = 145*(nodeNumber-1)
+#         for pointNumber in 1:37
+#             write(datFile,nodeLine( startingPoint + pointNumber, unitSize * (12*(j-1) + basePoints[pointNumber,2]), 0, unitSize * (12*(i-1) + basePoints[pointNumber,3]), loadPoints ))
+#         end
+#         for link in findall(links[i, j,:])
+#             if link == 1
+#                 for pointNumber in 38:70
+#                     write(datFile,nodeLine( startingPoint + pointNumber, unitSize * (12*(j-1) + basePoints[pointNumber,2]), 0, unitSize * (12*(i-1) + basePoints[pointNumber,3]), loadPoints ))
+#                 end
+#             elseif link == 2
+#                 for pointNumber in 71:91
+#                     write(datFile,nodeLine( startingPoint + pointNumber, unitSize * (12*(j-1) + basePoints[pointNumber,2]), 0, unitSize * (12*(i-1) + basePoints[pointNumber,3]), loadPoints ))
+#                 end
+#             elseif link == 3
+#                 for pointNumber in 92:124
+#                     write(datFile,nodeLine( startingPoint + pointNumber, unitSize * (12*(j-1) + basePoints[pointNumber,2]), 0, unitSize * (12*(i-1) + basePoints[pointNumber,3]), loadPoints ))
+#                 end
+#             else
+#                 for pointNumber in 125:145
+#                     write(datFile,nodeLine( startingPoint + pointNumber, unitSize * (12*(j-1) + basePoints[pointNumber,2]), 0, unitSize * (12*(i-1) + basePoints[pointNumber,3]), loadPoints ))
+#                 end
+#             end
+#         end
+#     end
+# end
+#
+# function writeElements(nodes, links, datFile, baseElements, H; compressive = 45.0, tensile = 4.8)
+#     for index in findall(nodes)
+#         nodeNumber = index[2] + H*(index[1]-1)
+#         startingPoint = 145*(nodeNumber-1)
+#         startingElement = 112*(nodeNumber-1)
+#         for elementNumber in 1:32
+#             write(datFile,elementLine( startingElement + elementNumber, startingPoint .+ baseElements[elementNumber,2:end], compressive, tensile ))
+#         end
+#         for link in findall(links[index[1], index[2],:])
+#             if link == 1
+#                 for elementNumber in 33:56
+#                     write(datFile,elementLine( startingElement + elementNumber, startingPoint .+ baseElements[elementNumber,2:end], compressive, tensile ))
+#
+#                 end
+#             elseif link == 2
+#                 for elementNumber in 57:72
+#                     write(datFile,elementLine( startingElement + elementNumber, startingPoint .+ baseElements[elementNumber,2:end], compressive, tensile ))
+#                 end
+#             elseif link == 3
+#                 for elementNumber in 73:96
+#                     write(datFile,elementLine( startingElement + elementNumber, startingPoint .+ baseElements[elementNumber,2:end], compressive, tensile ))
+#                 end
+#             else
+#                 for elementNumber in 97:112
+#                     write(datFile,elementLine( startingElement + elementNumber, startingPoint .+ baseElements[elementNumber,2:end], compressive, tensile ))
+#                 end
+#             end
+#         end
+#     end
+# end
+#
+# function writeElementsPlain(nodes, links, datFile, baseElements, H)
+#     for index in findall(nodes)
+#         nodeNumber = index[2] + H*(index[1]-1)
+#         startingPoint = 145*(nodeNumber-1)
+#         startingElement = 112*(nodeNumber-1)
+#         for elementNumber in 1:32
+#             write(datFile,elementLinePlain( startingElement + elementNumber, startingPoint .+ baseElements[elementNumber,2:end] ))
+#         end
+#         for link in findall(links[index[1], index[2],:])
+#             if link == 1
+#                 for elementNumber in 33:56
+#                     write(datFile,elementLinePlain( startingElement + elementNumber, startingPoint .+ baseElements[elementNumber,2:end] ))
+#
+#                 end
+#             elseif link == 2
+#                 for elementNumber in 57:72
+#                     write(datFile,elementLinePlain( startingElement + elementNumber, startingPoint .+ baseElements[elementNumber,2:end] ))
+#                 end
+#             elseif link == 3
+#                 for elementNumber in 73:96
+#                     write(datFile,elementLinePlain( startingElement + elementNumber, startingPoint .+ baseElements[elementNumber,2:end] ))
+#                 end
+#             else
+#                 for elementNumber in 97:112
+#                     write(datFile,elementLinePlain( startingElement + elementNumber, startingPoint .+ baseElements[elementNumber,2:end] ))
+#                 end
+#             end
+#         end
+#     end
+# end

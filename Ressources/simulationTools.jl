@@ -40,27 +40,26 @@ function parseArguments()
     (H,iterations,randomMat)
 end
 
-function runSteps(strain, stress, startStep, filename, dEpsilonMax, loadPoints)
+function runSteps(simulation)
 
-    if startStep == 0
+    if simulation.step == 0
         restart = false; nSteps = 10
     else
         restart = true; nSteps = 5
     end
 
-    addSteps(loadPoints, startStep, dEpsilonMax, unitSize, filename, restart = restart, nSteps = nSteps)
-
+    addSteps(simulation.model.loadPoints, simulation.step, simulation.dEpsilon,
+    simulation.model.unitSize, simulation.filename, restart = restart, nSteps = nSteps)
+    filename = simulation.filename
     run(`mv $filename.dat $filename`)
-    exit = execute(`./runCOM3.sh $filename`)
+    simulation.exit = execute(`./runCOM3.sh $filename`)
 
     forces = forceSteps(filename)
-    loadRange = [ (length(strain)+i)*dEpsilonMax for i=1:nSteps ]
+    loadRange = [ (length(simulation.strain)+i)*simulation.dEpsilon for i=1:nSteps ]
 
-    append!(strain, loadRange[1:length(forces)])
-    append!(stress, forces./area)
-    startStep += nSteps
-
-    maximum(stress), startStep, exit
+    append!(simulation.strain, loadRange[1:length(forces)])
+    append!(simulation.stress, forces./area)
+    simulation.step += nSteps
 end
 
 function energy(strain,stress)

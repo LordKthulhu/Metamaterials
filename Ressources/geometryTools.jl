@@ -62,6 +62,7 @@ function randomGeometry(H,nodes,links,potLinks; p=0.7)
 end
 
 function plotGeometry(barPlots,iter,skeleton)
+    barPlots[iter] = []
     H = skeleton.size
     for i in 1:H, j in 1:H
         for index in findall(skeleton.links[i,j,:])

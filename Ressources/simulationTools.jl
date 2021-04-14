@@ -29,7 +29,7 @@ function parseArguments()
             H = parse(Int,ARGS[currentArg+1])
             currentArg += 2
         elseif ARGS[currentArg] == "-parametric"
-            H = parse(Int,ARGS[currentArg+1])
+            parameters = ARGS[currentArg+1]
             currentArg += 2
         elseif ARGS[currentArg] == "-help"
             println("Supported arguments are:\n

@@ -4,3 +4,4 @@ metamat*
 chainBuilder.jl
 *.png
 results.csv
+parameters.csv

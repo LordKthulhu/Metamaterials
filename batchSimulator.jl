@@ -1,10 +1,9 @@
 using Plots
 using Printf
 using DelimitedFiles
-using Statistics
 using Glob
-using Dates
 using ProgressMeter
+using LaTeXStrings
 
 include("Ressources/structures.jl")
 include("Ressources/simulationTools.jl")
@@ -20,9 +19,21 @@ include("Ressources/geometryTools.jl")
 ENV["GKSwstype"] = "100"
 barPlots = [[] for i in 1:iterations]
 
-simulations = [ emptySimulation(iter,dEpsilon) for iter in 1:iterations ]
+parameterValues = []
+repeatedSimulation = 1
+materials = []
 
-@printf("Starting %d simulations on %d threads.\n",iterations,Threads.nthreads())
+if parameters != "none"
+    parameterValues = readdlm(parameters,',')
+    repeatedSimulation = size(parameterValues,1)
+    if randomMat
+        error("Cannot use random material and parametric study simultaneously.")
+    end
+end
+
+simulations = [ emptySimulation("$iter-$j",dEpsilon) for iter in 1:iterations,  j in 1:repeatedSimulation ]
+
+@printf("Starting %dx%d simulations on %d threads.\n",iterations,repeatedSimulation,Threads.nthreads())
 
 ################################################################################
 #####                            SIMULATIONS                               #####
@@ -32,36 +43,38 @@ progress = pBar(iterations,"Computing progess... ")
 
 Threads.@threads for iter = 1:iterations
 
-    while simulations[iter].exit == 1
+    while (s->s.exit).(simulations[iter,:]) != zeros(repeatedSimulation)
+
+        materials = []
+        if parameters != "none"
+            materials = [ Material(true,parameterValues[i,1],parameterValues[i,2]) for i in 1:size(parameterValues,1) ]
+        elseif randomMat
+            tensile = round(3+2*rand(),digits=2)
+            compressive = round(30+20*rand(),digits=2)
+            materials = [ Material(true,compressive,tensile) ]
+        else
+            materials = [ Material(true,45.0,4.8) ]
+        end
 
         skeleton = randomSkeleton(H)
         plotGeometry(barPlots,iter,skeleton) # Adding data for geometry plot
 
-        if randomMat
-            tensile = round(3+2*rand(),digits=2)
-            compressive = round(30+20*rand(),digits=2)
-            material = Material(true,compressive,tensile)
-        else
-            material = Material(true,45.0,4.8)
+        for i in 1:repeatedSimulation
+            model = modelFromSkeleton(skeleton, materials[i], unitSize, nodeWeights, linkWeights)
+            simulations[iter,i].model = model
+            runSimulation(simulations[iter,i])
         end
-
-        model = modelFromSkeleton(skeleton, material, unitSize, nodeWeights, linkWeights)
-        simulations[iter].model = model
-
-        runSimulation(simulations[iter])
     end
 
-    ###### If all COM3 runs terminate, go on to results processing ######
-
-    filename = simulations[iter].filename
-
-    run(`rm $filename/$filename-MECH.crk $filename/$filename-MECH.fld
-            $filename/$filename-MECH.int $filename/$filename-MECH.tmp $filename-restart.aux`)
-
-    io = open(filename*"/"*filename*"-results.csv","a")
-    writedlm(io,transpose(simulations[iter].strain),",")
-    writedlm(io,transpose(simulations[iter].stress),",")
-    close(io)
+    for simulation in simulations[iter,:]
+        filename = simulation.filename
+        run(`rm $filename/$filename-MECH.crk $filename/$filename-MECH.fld
+                $filename/$filename-MECH.int $filename/$filename-MECH.tmp $filename-restart.aux`)
+        io = open(filename*"/"*filename*"-results.csv","a")
+        writedlm(io,transpose(simulation.strain),",")
+        writedlm(io,transpose(simulation.stress),",")
+        close(io)
+    end
     next!(progress)
 end
 
@@ -78,16 +91,27 @@ for i=1:iterations
     for line in barPlots[i]
         plot!(plt, line[1], line[2], lw =3, lc = :black, label = false)
     end
-    png(plt,"metamat"*string(i)*"/metamat"*string(i)*"-barplot.png")
+    png(plt,"metamat"*string(i)*"-1/metamat"*string(i)*"-barplot.png")
     next!(progress)
     sleep(0.1)
 end
 
 # Stress-strain plots
 
-for i=1:iterations
-    plotfile = "metamat$i/metamat$i-plot.png"
-    plt = plot(simulations[i].strain,simulations[i].stress, lw = 3, ylabel = "Overall Stress (kg/cm2)",lc="green", label="PVA-ECC")
+if randomMat
+    labels = [ "Random material properties" ]
+elseif repeatedSimulation > 1
+    labels = [ L"\sigma_c = %$(parameterValues[i,1]) MPa, \sigma_t = %$(parameterValues[i,2]) MPa" for i in 1:repeatedSimulation ]
+else
+    labels = [ L"\sigma_c = 45 MPa, \sigma_t = 4.8 MPa" for i in 1:repeatedSimulation ]
+end
+
+for iter=1:iterations
+    plotfile = "metamat$iter-1/metamat$iter-plot.png"
+    plt = plot(lw = 3, xlabel = "Strain", ylabel = "Overall Stress (kg/cm2)", palette = :tab10, ylims = (0,Inf))
+    for i in 1:repeatedSimulation
+        plot!(plt,simulations[iter,i].strain,simulations[iter,i].stress, label=labels[i])
+    end
     png(plt,plotfile)
     next!(progress)
     sleep(0.1)
@@ -109,13 +133,22 @@ close(io)
 
 # General plots over all simulations
 
-strainsPlt = plot(weights,maxStrains, seriestype = :scatter, xlabel = "Area (cm2)",ylabel = "Failure strain",label="PVA-ECC", color = :blue)
+strainsPlt = plot(xlabel = "Area (cm2)",ylabel = "Failure strain", palette = :tab10)
+for i in 1:repeatedSimulation
+    plot!(strainsPlt, weights[:,i], maxStrains[:,i], seriestype = :scatter, label=labels[i])
+end
 png(strainsPlt,"strains.png")
 
 sleep(0.1)
-stressPlt = plot(weights,maxStresses, seriestype = :scatter, xlabel = "Area (cm2)",ylabel = "Failure stress",label="PVA-ECC", color = :blue)
+stressPlt = plot(xlabel = "Area (cm2)",ylabel = "Failure stress", palette = :tab10)
+for i in 1:repeatedSimulation
+     plot!(stressPlt,weights[:,i],maxStresses[:,i], seriestype = :scatter, label=labels[i])
+end
 png(stressPlt,"stresses.png")
 
 sleep(0.1)
-energyPlt = plot(weights,energyAbsorptions, seriestype = :scatter, xlabel = "Area (cm2)",ylabel = "Absorbed energy at failure",label="PVA-ECC", color = :blue)
+energyPlt = plot(xlabel = "Area (cm2)",ylabel = "Absorbed energy at failure", palette = :tab10)
+for i in 1:repeatedSimulation
+    plot!(energyPlt,weights[:,i],energyAbsorptions[:,i], seriestype = :scatter,label=labels[i])
+end
 png(energyPlt,"energies.png")

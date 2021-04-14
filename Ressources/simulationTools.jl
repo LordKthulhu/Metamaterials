@@ -1,5 +1,9 @@
 # Tools for parsing arguments and executing bash scripts
 
+function pBar(len,text; dt=1)
+    Progress(len, dt = dt, desc = text , barglyphs=BarGlyphs('|','█', ['▁' ,'▂' ,'▃' ,'▄' ,'▅' ,'▆', '▇'],' ','|',), barlen=20)
+end
+
 function execute(cmd::Cmd)
   out = Pipe()
   err = Pipe()
@@ -24,11 +28,15 @@ function parseArguments()
         elseif ARGS[currentArg] == "-patternsize"
             H = parse(Int,ARGS[currentArg+1])
             currentArg += 2
+        elseif ARGS[currentArg] == "-parametric"
+            parameters = ARGS[currentArg+1]
+            currentArg += 2
         elseif ARGS[currentArg] == "-help"
             println("Supported arguments are:\n
                -batchsize            Specify the number of desired simulations\n
-               -material-random      base-material will be randomly picked\n
-               -patternsize          size of the pattern grid (default is 3)\n")
+               -material-random      Base-material will be randomly picked\n
+               -patternsize          Size of the pattern grid (default is 3)\n
+               -parametric           Please specify a parameters file for parametric study.\n")
             exit(0)
         else
             throw(ArgumentError("Unsupported argument : $(ARGS[currentArg]). For available arguments, type -help."))
@@ -37,30 +45,30 @@ function parseArguments()
     (@isdefined H) ? nothing : H = 3
     (@isdefined iterations) ? nothing : iterations = 1
     (@isdefined randomMat) ? nothing : randomMat = false
-    (H,iterations,randomMat)
+    (@isdefined parameters) ? nothing : parameters = "none"
+    (H,iterations,randomMat,parameters)
 end
 
-function runSteps(strain, stress, startStep, filename, dEpsilonMax, loadPoints)
+function runSteps(simulation)
 
-    if startStep == 0
+    if simulation.step == 0
         restart = false; nSteps = 10
     else
         restart = true; nSteps = 5
     end
 
-    addSteps(loadPoints, startStep, dEpsilonMax, unitSize, filename, restart = restart, nSteps = nSteps)
-
+    addSteps(simulation.model.loadPoints, simulation.step, simulation.dEpsilon,
+    simulation.model.unitSize, simulation.filename, restart = restart, nSteps = nSteps)
+    filename = simulation.filename
     run(`mv $filename.dat $filename`)
-    exit = execute(`./runCOM3.sh $filename`)
+    simulation.exit = execute(`./runCOM3.sh $filename`)
 
     forces = forceSteps(filename)
-    loadRange = [ (length(strain)+i)*dEpsilonMax for i=1:nSteps ]
+    loadRange = [ (length(simulation.strain)+i)*simulation.dEpsilon for i=1:nSteps ]
 
-    append!(strain, loadRange[1:length(forces)])
-    append!(stress, forces./area)
-    startStep += nSteps
-
-    maximum(stress), startStep, exit
+    append!(simulation.strain, loadRange[1:length(forces)])
+    append!(simulation.stress, forces./area)
+    simulation.step += nSteps
 end
 
 function energy(strain,stress)

@@ -37,6 +37,31 @@ function randomSkeleton(H::Int; p=0.7)
     return Skeleton(H,nodes,links)
 end
 
+function checkCompatibility!(skeleton::Skeleton,link,value)
+    if value == 1
+        skeleton.nodes[link[1],link[2]] = true
+        if link[3] == 1
+            skeleton.nodes[i+1,j-1] = true
+        elseif link[3] == 2
+            skeleton.nodes[i+1,j] = true
+        elseif link[3] == 3
+            skeleton.nodes[i+1,j+1] = true
+        else
+            skeleton.nodes[i,j+1] = true
+        end
+    else
+        if !( 1 in skeleton.links[link[1],link[2],:])
+            skeleton.nodes[i,j] = 0
+        end
+        for i in max(1,link[1]-1):min(skeleton.size,link[1]+1), j in max(1,link[2]-1):min(skeleton.size,link[2]+1)
+            if !( 1 in skeleton.links[i,j,:])
+                skeleton.nodes[i,j] = false
+            end
+        end
+    end
+end
+
+
 struct Model
     points::Vector{Point}
     elements::Vector{Element}

@@ -1,14 +1,3 @@
-module MetamatEnv
-using Reinforce
-
-import Reinforce: reset!, actions, finished, step!, state
-
-export
-  MetamatEnv,
-  reset!,
-  step!,
-  actions,
-  finished
 
 mutable struct MetamatEnv <: AbstractEnvironment
     state::Skeleton
@@ -17,9 +6,9 @@ mutable struct MetamatEnv <: AbstractEnvironment
 end
 
 
-MetamatEnv(;H=3, maxsteps = 10) = MetamatEnv(randomSkeleton(H), 0.0, maxsteps)
+MetamatEnv(;H=3, maxsteps = 10) = MetamatEnv(randomSkeleton(H), 1e-9, maxsteps)
 
-reset!(env::MetamatEnv) = (env.state = randomSkeleton(env.state.size); env.reward = 0.0; env)
+reset!(env::MetamatEnv) = (env.state = randomSkeleton(env.state.size); env.reward = 1e-9; env)
 
 function actions(env::MetamatEnv, s)
     H = s.size
@@ -40,20 +29,17 @@ maxsteps(env::MetamatEnv) = env.maxsteps
 
 function step!(env::MetamatEnv, s, a)
     s = state(env)
-    s.links[a[1]] = a[2]
-    checkCompatibility!(s, a[1], a[2])
-
-    material = Material(45.0,4.8)
-    model = modelFromSkeleton(s, material, unitSize, nodeWeights, linkWeights)
-    simulation = emptySimulation("current",dEpsilon)
+    s′ = alteredSkeleton(s,a[1],a[2])
+    material = Material(true,45.0,4.8)
+    model = modelFromSkeleton(s, material, 1, makeBasePoints(), makeBaseElements(s.size), makeNodeWeights(s.size,1), makeLinkWeights(s.size,1))
+    simulation = emptySimulation("current$(Threads.threadid())",2e-4)
+    simulation.model = model
     runSimulation(simulation)
-    run(`rm -r metamatcurrent`)
-    env.reward = energy(simulation.strain,simulation.stress)
-    env.reward, s
+    run(`rm -r metamatcurrent$(Threads.threadid()) metamatcurrent$(Threads.threadid())-restart.aux`)
+    env.reward = finished(env,s′) ? 0.0 : 1000*energy(simulation.strain,simulation.stress)/simulation.model.weight
+    env.reward, s′
 end
 
 function finished(env::MetamatEnv, s′)
-    false
-end
-
+    env.reward < 1e-10
 end

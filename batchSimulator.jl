@@ -1,20 +1,18 @@
+push!(LOAD_PATH,"/mnt/c/Users/Pierre/Metamaterials/Ressources")
+using MetamatModule
+using DelimitedFiles
 using Plots
 using Printf
-using DelimitedFiles
-using Glob
-using ProgressMeter
 using LaTeXStrings
-
-include("Ressources/structures.jl")
-include("Ressources/simulationTools.jl")
-include("Ressources/COM3RWTools.jl")
 
 const H,iterations,randomMat,parameters = parseArguments()
 const unitSize = 1
 const dEpsilon = 2e-4
-const area = 12*(H-1)*unitSize*1.0
+const nodeWeights = makeNodeWeights(H,unitSize)
+const linkWeights = makeLinkWeights(H,unitSize)
+const basePoints = makeBasePoints()
+const baseElements = makeBaseElements(H)
 
-include("Ressources/geometryTools.jl")
 
 ENV["GKSwstype"] = "100"
 barPlots = [[] for i in 1:iterations]
@@ -57,10 +55,10 @@ Threads.@threads for iter = 1:iterations
         end
 
         skeleton = randomSkeleton(H)
-        plotGeometry(barPlots,iter,skeleton) # Adding data for geometry plot
+        barPlots[iter] = plotGeometry(skeleton) # Adding data for geometry plot
 
         for i in 1:repeatedSimulation
-            model = modelFromSkeleton(skeleton, materials[i], unitSize, nodeWeights, linkWeights)
+            model = modelFromSkeleton(skeleton, materials[i], unitSize, basePoints, baseElements, nodeWeights, linkWeights)
             simulations[iter,i].model = model
             runSimulation(simulations[iter,i])
         end

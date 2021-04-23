@@ -1,4 +1,4 @@
-push!(LOAD_PATH,"/mnt/c/Users/Pierre/Metamaterials/Ressources")
+push!(LOAD_PATH,pwd()*"/Ressources")
 using MetamatModule
 using DelimitedFiles
 using Plots
@@ -19,7 +19,11 @@ ENV["GKSwstype"] = "100"
 mutable struct MetamatPolicy <: AbstractPolicy end
 
 function epsGreedy(s,A,theta,N,t)
-    A[findmax([ ( Q(s.links,a,theta) + sqrt(20*log(t)/ evalN(N,s.links,a)) ) for a in A ])[2]]
+    if rand() < 0.7
+        A[findmax([ ( Q(s.links,a,theta)  ) for a in A ])[2]] #+ sqrt(2*log(t)/ (1+log(evalN(N,s.links,a))) )) for a in A ])[2]]
+    else
+        rand(A)
+    end
 end
 
 function Q(state,a,theta)
@@ -32,18 +36,19 @@ end
 
 learning(oldTheta,theta) = sum( (oldTheta .- theta).^2 )#/(32*H^4)
 
-env = [ MetamatEnv(H=H) for i in 1:Threads.nthreads() ]
+env = [ MetamatEnv(H=H,maxsteps=5) for i in 1:Threads.nthreads() ]
 
-N = zeros(H,H,4,H,H,4,2)
+#N = zeros(H,H,4,H,H,4,2)
 #theta = randn(H,H,4,H,H,4,2)
-thetas = [deepcopy(theta)]
+#thetas = [deepcopy(theta)]
 
 fullHistory = [ [] for i in 1:Threads.nthreads() ]
-for iter in 10:20
+for iter in 1:100
     Reinforce.action(π::MetamatPolicy, r, s, A) = epsGreedy(s,actions(env[1],s),theta,N,iter)
 
     Threads.@threads for run in 1:Threads.nthreads()
         history = []
+        delta = []
         R = run_episode(env[run], MetamatPolicy()) do (s,a,r,s′)
            push!(history, [deepcopy(s.links),a,r,deepcopy(s′.links)])
            #@info "On thread $(Threads.threadid()), reward is $r"
@@ -53,14 +58,20 @@ for iter in 10:20
         i = 0
         for (s,a,r,s′) in history[2:end]
             i += 1
-            for j in findall(s)
-                N[j[1],j[2],j[3],a[1][1],a[1][2],a[1][3],a[2]+1] += 1
-                theta[j[1],j[2],j[3],a[1][1],a[1][2],a[1][3],a[2]+1] += 1/N[j[1],j[2],j[3],a[1][1],a[1][2],a[1][3],a[2]+1] * (g[i]-Q(s,a,theta))
+            features = findall(s)
+            error = (g[i]-Q(s,a,theta))
+            for j in features
+                #N[j[1],j[2],j[3],a[1][1],a[1][2],a[1][3],a[2]+1] += 1
+                theta[j[1],j[2],j[3],a[1][1],a[1][2],a[1][3],a[2]+1] += 0.5/length(features) * error #1/(1+log(N[j[1],j[2],j[3],a[1][1],a[1][2],a[1][3],a[2]+1])) * (g[i]-Q(s,a,theta))
             end
+            push!(delta,error)
         end
         push!(fullHistory[Threads.threadid()],history)
-        @info "On thread $(Threads.threadid()), average reward is $(mean(getindex.(history,3)))"
+        if length(delta)>0
+            @info "On thread $(Threads.threadid()), reward improvement is $(history[end][3]-history[1][3]), errors on value function : $(sum(abs.(delta)))"
+        end
     end
+
 
     @info "Theta was improved (squared error) by $(learning(thetas[end],theta))"
     push!(thetas,deepcopy(theta))

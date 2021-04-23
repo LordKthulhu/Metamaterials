@@ -7,7 +7,7 @@ function hover(event)
     visLeft = [ a.get_visible() for a in annotLeft ]
     visRight = [ a.get_visible() for a in annotRight ]
     if event.inaxes == ax[1]
-        cont,ind = sc.contains(event)
+        cont,ind = sc[1].contains(event)
         if cont
             annotLeft[ind["ind"][1]+1].set_visible(true)
             annotRight[ind["ind"][1]+1].set_visible(true)
@@ -37,7 +37,9 @@ stressImageBoxes = [ matplotlib.offsetbox.OffsetImage(stressPlots[i], zoom=0.9) 
 
 fig,ax = PyPlot.subplots(1,2)
 
-sc = ax[1].scatter(data[1,:],data[1+size(data,1)÷4,:])
+sets = size(data,1)÷4
+
+sc = [ ax[1].scatter(data[i,:],data[i+sets,:]) for i in 1:sets ]
 ax[1].set_xlabel("Area (cm2)")
 ax[1].set_ylabel("Max Stress (kgf/cm2)")
 

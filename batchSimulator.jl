@@ -1,4 +1,4 @@
-push!(LOAD_PATH,"/mnt/c/Users/Pierre/Metamaterials/Ressources")
+push!(LOAD_PATH,pwd()*"/Ressources")
 using MetamatModule
 using DelimitedFiles
 using Plots
@@ -79,6 +79,8 @@ end
 ################################################################################
 #####                           RESULTS OUTPUT                             #####
 ################################################################################
+
+
 
 # Geometry plots
 

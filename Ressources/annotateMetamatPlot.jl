@@ -1,12 +1,13 @@
 using PyCall
 using PyPlot
 using DelimitedFiles
+using Glob
 
 function hover(event)
     visLeft = [ a.get_visible() for a in annotLeft ]
     visRight = [ a.get_visible() for a in annotRight ]
-    if event.inaxes == ax[2]
-        cont,ind = sc.contains(event)
+    if event.inaxes == ax[1]
+        cont,ind = sc[1].contains(event)
         if cont
             annotLeft[ind["ind"][1]+1].set_visible(true)
             annotRight[ind["ind"][1]+1].set_visible(true)
@@ -26,41 +27,43 @@ end
 
 data = readdlm("results.csv",',')
 
+const N = length(glob("*-1/"))
 
-barModels = [ PyPlot.imread("metamat$i/metamat$i-barplot.png",format="png") for i=1:500 ]
-barImageBoxes = [ matplotlib.offsetbox.OffsetImage(barModels[i], zoom=0.3) for i=1:500 ]
+barModels = [ PyPlot.imread("metamat$i-1/metamat$i-barplot.png",format="png") for i=1:N ]
+barImageBoxes = [ matplotlib.offsetbox.OffsetImage(barModels[i], zoom=0.5) for i=1:N ]
 
-stressPlots = [ PyPlot.imread("metamat$i/metamat$i-plot.png",format="png") for i=1:500 ]
-stressImageBoxes = [ matplotlib.offsetbox.OffsetImage(stressPlots[i], zoom=0.3) for i=1:500 ]
+stressPlots = [ PyPlot.imread("metamat$i-1/metamat$i-plot.png",format="png") for i=1:N ]
+stressImageBoxes = [ matplotlib.offsetbox.OffsetImage(stressPlots[i], zoom=0.9) for i=1:N ]
 
+fig,ax = PyPlot.subplots(1,2)
 
-fig,ax = PyPlot.subplots(1,3)
+sets = size(data,1)÷4
 
-sc = ax[2].scatter(data[1,:],data[2,:])
+sc = [ ax[1].scatter(data[i,:],data[i+sets,:]) for i in 1:sets ]
+ax[1].set_xlabel("Area (cm2)")
+ax[1].set_ylabel("Max Stress (kgf/cm2)")
 
-ax[1].set_axis_off()
-ax[3].set_axis_off()
+ax[2].set_axis_off()
 
-for i=1:500
-    barImageBoxes[i].image.axes = ax[1]
-    stressImageBoxes[i].image.axes = ax[3]
+for i=1:N
+    barImageBoxes[i].image.axes = ax[2]
+    stressImageBoxes[i].image.axes = ax[2]
 end
 
 annotLeft = []
 annotRight = []
-for i=1:500
-    ab1 = matplotlib.offsetbox.AnnotationBbox(imagebox, [0.5,0.5])
-    push!(annot,ax[2].add_artist(ab1))
-    ab2 = matplotlib.offsetbox.AnnotationBbox(imagebox, [0.5,0.5])
-    push!(annot,ax[2].add_artist(ab2))
-
+for i=1:N
+    ab1 = matplotlib.offsetbox.AnnotationBbox(barImageBoxes[i], [0.5,0.15])
+    push!(annotLeft,ax[2].add_artist(ab1))
+    ab2 = matplotlib.offsetbox.AnnotationBbox(stressImageBoxes[i], [0.5,0.7])
+    push!(annotRight,ax[2].add_artist(ab2))
+end
 for a in annotLeft
     a.set_visible(false)
 end
 for a in annotRight
     a.set_visible(false)
 end
-
 
 fig.canvas.mpl_connect("motion_notify_event", hover)
 

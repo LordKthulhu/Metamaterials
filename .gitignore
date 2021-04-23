@@ -5,3 +5,5 @@ chainBuilder.jl
 *.png
 results.csv
 parameters.csv
+tool.jl
+*.jld

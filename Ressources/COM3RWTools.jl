@@ -1,6 +1,5 @@
 ### Tools for Reading from / Writing to COM3 files
 
-
 ################################################################################
 #####                           WRITING TOOLS                              #####
 ################################################################################
@@ -29,7 +28,7 @@ function loadLine(n,F)
     "LOAD " * " "^(5-length(sn)) * sn * "   0.00000   0.00000" * " "^(10-length(sf)) * sf * "\n"
 end
 
-function addSteps(loadPoints, step, dEpsilonMax, unitSize, filename; restart = true, nSteps = 5)
+function addSteps(loadPoints, step, dEpsilonMax, unitSize, H, filename; restart = true, nSteps = 5)
     restart ? run(`cp $(filename)-restart.aux $(filename).dat`) : nothing
     datFile = open("$filename.dat","a")
     for i=1:nSteps

@@ -26,6 +26,8 @@ struct Skeleton
     links::Array{Bool,3}
 end
 
+Base.copy(s::Skeleton) = Skeleton(s.size,s.nodes,s.links)
+
 function randomSkeleton(H::Int; p=0.7)
     potLinks = trues(H,H,4)
     nodes = falses(H, H)
@@ -37,17 +39,40 @@ function randomSkeleton(H::Int; p=0.7)
     return Skeleton(H,nodes,links)
 end
 
+function alteredSkeleton(skeleton::Skeleton, linkCoor, linkValue)
+    nodes = falses(skeleton.size, skeleton.size)
+    links = skeleton.links
+    links[linkCoor] = linkValue
+    for link in findall(links)
+        if link[1]!=0 && link[2]!=0
+            nodes[link[1],link[2]] = true
+        end
+        if link[3]==1
+            nodes[link[1]+1,link[2]-1] = true
+        elseif link[3]==2
+            nodes[link[1]+1,link[2]] = true
+        elseif link[3]==3
+            nodes[link[1]+1,link[2]+1] = true
+        else
+            nodes[link[1],link[2]+1] = true
+        end
+    end
+    Skeleton(skeleton.size,nodes,links)
+end
+
 struct Model
     points::Vector{Point}
     elements::Vector{Element}
     loadPoints::Vector{Vector{Int}}
     boundaries::Vector{String}
     unitSize::Float64
+    size::Int
     weight::Float64
     material::Material
 end
 
-function modelFromSkeleton(skeleton::Skeleton,material::Material,unitSize, nodeWeights, linkWeights)
+
+function modelFromSkeleton(skeleton::Skeleton,material::Material,unitSize, basePoints, baseElements, nodeWeights, linkWeights)
     points = []
     for index in findall(skeleton.nodes)
         i = index[1]; j = index[2]
@@ -83,10 +108,10 @@ function modelFromSkeleton(skeleton::Skeleton,material::Material,unitSize, nodeW
         if point.z == 0
             push!(loadPoints, [point.n,-1])
             restraint[3] = '1'
-        elseif point.z == 12*(H-1)*unitSize
+        elseif point.z == 12*(skeleton.size-1)*unitSize
             push!(loadPoints, [point.n,1])
             restraint[3] = '1'
-        elseif point.x == 12*(H-1)*unitSize
+        elseif point.x == 12*(skeleton.size-1)*unitSize
             restraint[1] = '1'
         end
         boundaries[point.n] = join(restraint)
@@ -120,7 +145,7 @@ function modelFromSkeleton(skeleton::Skeleton,material::Material,unitSize, nodeW
         end
     end
     weight = sum(skeleton.nodes .* nodeWeights) + sum(skeleton.links .* linkWeights)
-    return Model(points, elements, loadPoints, boundaries, unitSize, weight, material)
+    return Model(points, elements, loadPoints, boundaries, unitSize, skeleton.size, weight, material)
 end
 
 mutable struct Simulation
@@ -134,7 +159,7 @@ mutable struct Simulation
 end
 
 function emptySimulation(iter,dEpsilon::Float64)
-    return Simulation("metamat$iter",Model([],[],[],[],0,0,Material(true,0,0)),dEpsilon,0,1,[],[])
+    return Simulation("metamat$iter",Model([],[],[],[],0,0,0,Material(true,0,0)),dEpsilon,0,1,[],[])
 end
 
 function runSimulation(simulation::Simulation)

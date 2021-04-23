@@ -49,7 +49,7 @@ function parseArguments()
     (H,iterations,randomMat,parameters)
 end
 
-function runSteps(simulation)
+function runSteps(simulation::Simulation)
 
     if simulation.step == 0
         restart = false; nSteps = 10
@@ -58,7 +58,7 @@ function runSteps(simulation)
     end
 
     addSteps(simulation.model.loadPoints, simulation.step, simulation.dEpsilon,
-    simulation.model.unitSize, simulation.filename, restart = restart, nSteps = nSteps)
+    simulation.model.unitSize, simulation.model.size, simulation.filename, restart = restart, nSteps = nSteps)
     filename = simulation.filename
     run(`mv $filename.dat $filename`)
     simulation.exit = execute(`./runCOM3.sh $filename`)
@@ -67,6 +67,7 @@ function runSteps(simulation)
     loadRange = [ (length(simulation.strain)+i)*simulation.dEpsilon for i=1:nSteps ]
 
     append!(simulation.strain, loadRange[1:length(forces)])
+    area = 12*(simulation.model.size-1)*simulation.model.unitSize*1.0
     append!(simulation.stress, forces./area)
     simulation.step += nSteps
 end

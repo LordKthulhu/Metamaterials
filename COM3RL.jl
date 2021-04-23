@@ -36,11 +36,11 @@ end
 
 learning(oldTheta,theta) = sum( (oldTheta .- theta).^2 )#/(32*H^4)
 
-env = [ MetamatEnv(H=H,maxsteps=5) for i in 1:Threads.nthreads() ]
+env = [ MetamatEnv(H=H,maxsteps=4) for i in 1:Threads.nthreads() ]
 
-#N = zeros(H,H,4,H,H,4,2)
+N = zeros(H,H,4,H,H,4,2)
 #theta = randn(H,H,4,H,H,4,2)
-#thetas = [deepcopy(theta)]
+thetas = [deepcopy(theta)]
 
 fullHistory = [ [] for i in 1:Threads.nthreads() ]
 for iter in 1:100
@@ -62,7 +62,7 @@ for iter in 1:100
             error = (g[i]-Q(s,a,theta))
             for j in features
                 #N[j[1],j[2],j[3],a[1][1],a[1][2],a[1][3],a[2]+1] += 1
-                theta[j[1],j[2],j[3],a[1][1],a[1][2],a[1][3],a[2]+1] += 0.5/length(features) * error #1/(1+log(N[j[1],j[2],j[3],a[1][1],a[1][2],a[1][3],a[2]+1])) * (g[i]-Q(s,a,theta))
+                theta[j[1],j[2],j[3],a[1][1],a[1][2],a[1][3],a[2]+1] += 0.8/length(features) * error #1/(1+log(N[j[1],j[2],j[3],a[1][1],a[1][2],a[1][3],a[2]+1])) * (g[i]-Q(s,a,theta))
             end
             push!(delta,error)
         end

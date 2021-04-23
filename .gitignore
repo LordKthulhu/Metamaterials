@@ -1,6 +1,8 @@
 *.exe
 *.dll
-metamat*
+metamat[1-9]*
+metamatcurrent*
+metamatplain*
 chainBuilder.jl
 *.png
 results.csv

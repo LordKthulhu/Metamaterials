@@ -4,6 +4,7 @@ using DelimitedFiles
 using Plots
 using Printf
 using LaTeXStrings
+using Shell
 
 const H,iterations,randomMat,parameters = parseArguments()
 const unitSize = 1
@@ -66,8 +67,8 @@ Threads.@threads for iter = 1:iterations
 
     for simulation in simulations[iter,:]
         filename = simulation.filename
-        run(`rm $filename/$filename-MECH.crk $filename/$filename-MECH.fld
-                $filename/$filename-MECH.int $filename/$filename-MECH.tmp $filename-restart.aux`)
+        Shell.run("rm $filename/$filename-MECH.crk $filename/$filename-MECH.fld
+                $filename/$filename-MECH.int $filename/$filename-MECH.tmp $filename-restart.aux")
         io = open(filename*"/"*filename*"-results.csv","a")
         writedlm(io,transpose(simulation.strain),",")
         writedlm(io,transpose(simulation.stress),",")

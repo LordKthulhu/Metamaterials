@@ -4,16 +4,30 @@ function pBar(len,text; dt=1)
     Progress(len, dt = dt, desc = text , barglyphs=BarGlyphs('|','█', ['▁' ,'▂' ,'▃' ,'▄' ,'▅' ,'▆', '▇'],' ','|',), barlen=20)
 end
 
-function execute(cmd::Cmd)
+function execute(cmd::String)
+    if Sys.iswindows()
+        executeWindows(cmd)
+    else
+        executeLinux(cmd)
+    end
+end
+
+
+function executeLinux(cmd::String)
   out = Pipe()
   err = Pipe()
 
-  process = run(pipeline(ignorestatus(cmd), stdout=out, stderr=err))
+  process = run(pipeline(ignorestatus(`./runCOM3.sh $cmd`), stdout=out, stderr=err))
   close(out.in)
   close(err.in)
   code = process.exitcode
   code == 1 ? display("Error occured") : nothing
   code
+end
+
+function executeWindows(cmd::String)
+    Shell.run(cmd)
+    1
 end
 
 function parseArguments()
@@ -60,8 +74,8 @@ function runSteps(simulation::Simulation)
     addSteps(simulation.model.loadPoints, simulation.step, simulation.dEpsilon,
     simulation.model.unitSize, simulation.model.size, simulation.filename, restart = restart, nSteps = nSteps)
     filename = simulation.filename
-    run(`mv $filename.dat $filename`)
-    simulation.exit = execute(`./runCOM3.sh $filename`)
+    Shell.run("mv $filename.dat $filename")
+    simulation.exit = execute(filename)
 
     forces = forceSteps(filename)
     loadRange = [ (length(simulation.strain)+i)*simulation.dEpsilon for i=1:nSteps ]

@@ -67,8 +67,11 @@ Threads.@threads for iter = 1:iterations
 
     for simulation in simulations[iter,:]
         filename = simulation.filename
-        Shell.run("rm $filename/$filename-MECH.crk $filename/$filename-MECH.fld
-                $filename/$filename-MECH.int $filename/$filename-MECH.tmp $filename-restart.aux")
+        if Sys.iswindows()
+            Shell.run("rm $filename\\$filename-MECH.crk $filename\\$filename-MECH.fld $filename\\$filename-MECH.int $filename\\$filename-MECH.tmp $filename-restart.aux")
+        else
+            Shell.run("rm $filename/$filename-MECH.crk $filename/$filename-MECH.fld $filename/$filename-MECH.int $filename/$filename-MECH.tmp $filename-restart.aux")
+        end
         io = open(filename*"/"*filename*"-results.csv","a")
         writedlm(io,transpose(simulation.strain),",")
         writedlm(io,transpose(simulation.stress),",")

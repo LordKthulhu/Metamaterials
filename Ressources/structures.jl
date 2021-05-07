@@ -196,7 +196,7 @@ function runSimulation(simulation::Simulation)
     Shell.run("rm $(prod(file*" " for file in mechFiles))")
 
     if simulation.exit == 1
-        println("Simulation $iter failed. Starting over.")
+        println("Simulation $filename failed. Starting over.")
         Shell.run("rm -r $filename")
     end
 end

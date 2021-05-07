@@ -26,7 +26,7 @@ function executeLinux(cmd::String)
 end
 
 function executeWindows(cmd::String)
-    Shell.run(cmd)
+    Shell.run("runCOM3.sh $cmd")
     1
 end
 

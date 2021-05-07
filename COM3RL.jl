@@ -42,7 +42,7 @@ N = zeros(H,H,4,H,H,4,2)
 #theta = randn(H,H,4,H,H,4,2)
 thetas = [deepcopy(theta)]
 
-fullHistory = [ [] for i in 1:Threads.nthreads() ]
+#fullHistory = [ [] for i in 1:Threads.nthreads() ]
 for iter in 1:100
     Reinforce.action(π::MetamatPolicy, r, s, A) = epsGreedy(s,actions(env[1],s),theta,N,iter)
 

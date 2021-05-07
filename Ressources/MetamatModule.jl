@@ -6,6 +6,7 @@ using DelimitedFiles
 using Glob
 using ProgressMeter
 using LaTeXStrings
+using Shell
 using Reinforce: AbstractEnvironment
 
 

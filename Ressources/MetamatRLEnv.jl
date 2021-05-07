@@ -35,7 +35,7 @@ function step!(env::MetamatEnv, s, a)
     simulation = emptySimulation("current$(Threads.threadid())",2e-4)
     simulation.model = model
     runSimulation(simulation)
-    run(`rm -r metamatcurrent$(Threads.threadid()) metamatcurrent$(Threads.threadid())-restart.aux`)
+    Shell.run("rm -r metamatcurrent$(Threads.threadid()) metamatcurrent$(Threads.threadid())-restart.aux")
     env.reward = simulation.exit == 1 ? 0.0 : 1000*energy(simulation.strain,simulation.stress)/simulation.model.weight
     env.reward, s′
 end

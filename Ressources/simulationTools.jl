@@ -27,7 +27,7 @@ end
 
 function executeWindows(cmd::String)
     Shell.run("runCOM3.sh $cmd")
-    1
+    0
 end
 
 function parseArguments()

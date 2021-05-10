@@ -9,7 +9,17 @@ The whole framework is made thread-safe so that many simulations can be run in p
 ## Starting up with the framework
 
 This framework is a module coded using the *Julia programming language*, a high performance language for scientific purposes.
-You will need to first install *Julia* and then run the `setup.jl` (WIP) script to install relevant packages for this framework.\
+You will need to first install *Julia* (https://julialang.org/) and *Git for Windows* (https://gitforwindows.org/). Once that is done, use the *git GUI* to clone this github repository.\
+Go to the windows command line, ( by typing `cmd` in the search bar for instance) and type in :
+```
+setx PATH "%PATH%;C:\Users\[Your-User-Name]\AppData\Local\Programs\Julia-1.6.1\bin"
+```
+after replacing with your correct username.\
+Then launch *git bash* and run the following in the Metamaterials folder (use cd to change directories inside the bash) :
+```
+julia setup.jl
+``` 
+This script will install relevant packages for this framework.\
 Once this is done, you can run a simple batch of simulations by writing in a terminal :
 ```
 julia batchSimulation.jl -batchsize N

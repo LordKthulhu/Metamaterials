@@ -164,7 +164,7 @@ end
 
 function runSimulation(simulation::Simulation)
     filename = simulation.filename
-    Shell.run("mkdir $filename")
+    run(`mkdir $filename`)
     datFile = open("$filename.dat","w")
     write(datFile, "Metamaterial Project\n1202000001000200000000002     0.700     0.000     0.000         0\nNODE\n")
     for point in simulation.model.points
@@ -188,15 +188,19 @@ function runSimulation(simulation::Simulation)
     end
     close(auxFile)
     runSteps(simulation)
-    while simulation.stress[end]/maximum(simulation.stress) > 0.5 && simulation.exit == 0
+    while simulation.stress[end]/maximum(simulation.stress) > 0.5 && simulation.exit == 0 && simulation.step <= 150
         runSteps(simulation)
     end
 
     mechFiles = glob("$(filename)/MECHIFI*")
-    Shell.run("rm $(prod(file*" " for file in mechFiles))")
+    run(`rm $mechFiles`)
+
+    if simulation.step > 150
+        simulation.exit = 1
+    end
 
     if simulation.exit == 1
         println("Simulation $filename failed. Starting over.")
-        Shell.run("rm -r $filename")
+        run(`rm -r $filename`)
     end
 end

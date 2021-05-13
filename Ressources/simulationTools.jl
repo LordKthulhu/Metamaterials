@@ -74,7 +74,7 @@ function runSteps(simulation::Simulation)
     addSteps(simulation.model.loadPoints, simulation.step, simulation.dEpsilon,
     simulation.model.unitSize, simulation.model.size, simulation.filename, restart = restart, nSteps = nSteps)
     filename = simulation.filename
-    Shell.run("mv $filename.dat $filename")
+    run(`mv $filename.dat $filename`)
     simulation.exit = execute(filename)
 
     forces = forceSteps(filename)

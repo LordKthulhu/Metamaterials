@@ -25,6 +25,22 @@ function hover(event)
     end
 end
 
+ylabels = [ "Max Strain", "Max Stress (kgf/cm2)", "Energy"]
+
+mode = 2
+
+if length(ARGS)>0
+    if ARGS[1] == "strain"
+        mode = 1
+    elseif ARGS[1] == "stress"
+        mode = 2
+    elseif ARGS[1] == "energy"
+        mode = 3
+    else
+        throw(ArgumentError("Unsupported argument : $(ARGS[1]). Possible arguments are strain, stress, or energy.\n"))
+    end
+end
+
 data = readdlm("results.csv",',')
 
 const N = length(glob("*-1/"))
@@ -39,9 +55,9 @@ fig,ax = PyPlot.subplots(1,2)
 
 sets = size(data,1)÷4
 
-sc = [ ax[1].scatter(data[i,:],data[i+sets,:]) for i in 1:sets ]
+sc = [ ax[1].scatter(data[i,:],data[i+mode*sets,:]) for i in 1:sets ]
 ax[1].set_xlabel("Area (cm2)")
-ax[1].set_ylabel("Max Stress (kgf/cm2)")
+ax[1].set_ylabel(ylabels[mode])
 
 ax[2].set_axis_off()
 

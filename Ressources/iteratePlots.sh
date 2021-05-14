@@ -1,16 +1,16 @@
 echo "Would you like to see a plot? [y/N]\n"
 read answer
-while [ "$answer" = "y"]
+while [ "$answer" = "y" ]
 do
   echo "Which plot would you like to see? [stress/strain/energy]\n"
   read plot
-  if ["$plot" = "stress"]
+  if [ "$plot" = "stress" ]
   then
     julia Ressources/annotateMetamatPlot.jl stress
-  elif  ["$plot" = "strain"]
+  elif  [ "$plot" = "strain" ]
   then
     julia Ressources/annotateMetamatPlot.jl strain
-  elif  ["$plot" = "energy"]
+  elif  [ "$plot" = "energy" ]
   then
     julia Ressources/annotateMetamatPlot.jl energy
   else

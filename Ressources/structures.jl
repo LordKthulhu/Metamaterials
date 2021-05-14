@@ -28,7 +28,7 @@ end
 
 Base.copy(s::Skeleton) = Skeleton(s.size,s.nodes,s.links)
 
-function randomSkeleton(H::Int; p=0.5)
+function randomSkeleton(H::Int; p=0.35)
     potLinks = trues(H,H,4)
     nodes = falses(H, H)
     links = falses(H, H, 4)
@@ -200,7 +200,7 @@ function runSimulation(simulation::Simulation)
     end
 
     if simulation.exit == 1
-        println("Simulation $filename failed. Starting over.")
+        #println("Simulation $filename failed. Starting over.")
         run(`rm -r $filename`)
     end
 end

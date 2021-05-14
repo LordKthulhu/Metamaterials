@@ -14,10 +14,13 @@ end
 
 
 function executeLinux(cmd::String)
-  process = run(pipeline(ignorestatus(`./runCOM3.sh $cmd`)))
-  code = process.exitcode
-  code == 1 ? display("Error occured") : nothing
-  code
+    err = Pipe()
+    process = run(pipeline(ignorestatus(`./runCOM3.sh $cmd`),stderr=err))
+    close(err.in)
+    close(err.out)
+    code = process.exitcode
+    code == 1 ? display("Error occured") : nothing
+    code
 end
 
 function executeWindows(cmd::String)

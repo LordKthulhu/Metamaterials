@@ -105,7 +105,7 @@ for i=1:iterations
     end
     png(plt,"metamat"*string(i)*"-1/metamat"*string(i)*"-barplot.png")
     next!(progress)
-    sleep(0.1)
+    #sleep(0.01)
 end
 
 # Stress-strain plots
@@ -126,7 +126,7 @@ for iter=1:iterations
     end
     png(plt,plotfile)
     next!(progress)
-    sleep(0.1)
+    #sleep(0.01)
 end
 
 # CSV output

@@ -14,15 +14,13 @@ end
 
 
 function executeLinux(cmd::String)
-  out = Pipe()
-  err = Pipe()
-
-  process = run(pipeline(ignorestatus(`./runCOM3.sh $cmd`), stdout=out, stderr=err))
-  close(out.in)
-  close(err.in)
-  code = process.exitcode
-  code == 1 ? display("Error occured") : nothing
-  code
+    err = Pipe()
+    process = run(pipeline(ignorestatus(`./runCOM3.sh $cmd`),stderr=err))
+    close(err.in)
+    close(err.out)
+    code = process.exitcode
+    code == 1 ? display("Error occured") : nothing
+    code
 end
 
 function executeWindows(cmd::String)
@@ -74,7 +72,7 @@ function runSteps(simulation::Simulation)
     addSteps(simulation.model.loadPoints, simulation.step, simulation.dEpsilon,
     simulation.model.unitSize, simulation.model.size, simulation.filename, restart = restart, nSteps = nSteps)
     filename = simulation.filename
-    Shell.run("mv $filename.dat $filename")
+    run(`mv $filename.dat $filename`)
     simulation.exit = execute(filename)
 
     forces = forceSteps(filename)

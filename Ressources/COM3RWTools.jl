@@ -29,7 +29,7 @@ function loadLine(n,F)
 end
 
 function addSteps(loadPoints, step, dEpsilonMax, unitSize, H, filename; restart = true, nSteps = 5)
-    restart ? Shell.run("cp $(filename)-restart.aux $(filename).dat") : nothing
+    restart ? run(`cp $(filename)-restart.aux $(filename).dat`) : nothing
     datFile = open("$filename.dat","a")
     for i=1:nSteps
         timeStr = @sprintf("%.4f",0.001*(step+i))

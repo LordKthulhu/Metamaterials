@@ -5,6 +5,8 @@ using Plots
 using Printf
 using LaTeXStrings
 using Shell
+using Dates
+using Glob
 
 const H,iterations,randomMat,parameters = parseArguments()
 const unitSize = 1
@@ -14,9 +16,15 @@ const linkWeights = makeLinkWeights(H,unitSize)
 const basePoints = makeBasePoints()
 const baseElements = makeBaseElements(H)
 
+if Sys.iswindows()
+    Shell.run("cleanup.sh")
+else
+    run(`./cleanup.sh`)
+end
 
 ENV["GKSwstype"] = "100"
 barPlots = [[] for i in 1:iterations]
+skeletonLinks = [ falses(H,H,4) for i in 1:iterations ]
 
 parameterValues = []
 repeatedSimulation = 1
@@ -61,17 +69,15 @@ Threads.@threads for iter = 1:iterations
         for i in 1:repeatedSimulation
             model = modelFromSkeleton(skeleton, materials[i], unitSize, basePoints, baseElements, nodeWeights, linkWeights)
             simulations[iter,i].model = model
+            simulations[iter,i].step = 0; simulations[iter,i].strain = []; simulations[iter,i].stress = []
             runSimulation(simulations[iter,i])
         end
+        skeletonLinks[iter] = skeleton.links
     end
 
     for simulation in simulations[iter,:]
         filename = simulation.filename
-        if Sys.iswindows()
-            Shell.run("rm $filename\\$filename-MECH.crk $filename\\$filename-MECH.fld $filename\\$filename-MECH.int $filename\\$filename-MECH.tmp $filename-restart.aux")
-        else
-            Shell.run("rm $filename/$filename-MECH.crk $filename/$filename-MECH.fld $filename/$filename-MECH.int $filename/$filename-MECH.tmp $filename-restart.aux")
-        end
+        run(`rm $filename/$filename-MECH.crk $filename/$filename-MECH.fld $filename/$filename-MECH.int $filename/$filename-MECH.tmp $filename-restart.aux`)
         io = open(filename*"/"*filename*"-results.csv","a")
         writedlm(io,transpose(simulation.strain),",")
         writedlm(io,transpose(simulation.stress),",")
@@ -84,20 +90,22 @@ end
 #####                           RESULTS OUTPUT                             #####
 ################################################################################
 
+# Number of unique simulations
 
+@printf("Number of unique simulations : %d out of %d simulations total.\n",length(unique(skeletonLinks)),iterations)
 
 # Geometry plots
 
 progress = pBar(2*iterations,"Plotting...          ",dt=0.5)
 
 for i=1:iterations
-    plt = plot(showaxis=false,size=(400,400))
+    plt = plot(showaxis=false,size=(400,400),title="Metamaterial $i")
     for line in barPlots[i]
         plot!(plt, line[1], line[2], lw =3, lc = :black, label = false)
     end
     png(plt,"metamat"*string(i)*"-1/metamat"*string(i)*"-barplot.png")
     next!(progress)
-    sleep(0.1)
+    #sleep(0.01)
 end
 
 # Stress-strain plots
@@ -118,7 +126,7 @@ for iter=1:iterations
     end
     png(plt,plotfile)
     next!(progress)
-    sleep(0.1)
+    #sleep(0.01)
 end
 
 # CSV output
@@ -156,3 +164,9 @@ for i in 1:repeatedSimulation
     plot!(energyPlt,weights[:,i],energyAbsorptions[:,i], seriestype = :scatter,label=labels[i])
 end
 png(energyPlt,"energies.png")
+
+currentTime = Dates.format(now(),"dd-mm-yyyy_HH:MM:SS")
+run(`mkdir Batch_$currentTime`)
+folders = glob("metamat*/")
+plots = glob("*.png")
+run(`mv $folders $plots results.csv Batch_$currentTime/`)

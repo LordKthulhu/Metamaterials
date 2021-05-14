@@ -14,12 +14,7 @@ end
 
 
 function executeLinux(cmd::String)
-  out = Pipe()
-  err = Pipe()
-
-  process = run(pipeline(ignorestatus(`./runCOM3.sh $cmd`), stdout=out, stderr=err))
-  close(out.in)
-  close(err.in)
+  process = run(pipeline(ignorestatus(`./runCOM3.sh $cmd`)))
   code = process.exitcode
   code == 1 ? display("Error occured") : nothing
   code

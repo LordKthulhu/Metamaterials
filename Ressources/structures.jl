@@ -28,7 +28,7 @@ end
 
 Base.copy(s::Skeleton) = Skeleton(s.size,s.nodes,s.links)
 
-function randomSkeleton(H::Int; p=0.7)
+function randomSkeleton(H::Int; p=0.5)
     potLinks = trues(H,H,4)
     nodes = falses(H, H)
     links = falses(H, H, 4)

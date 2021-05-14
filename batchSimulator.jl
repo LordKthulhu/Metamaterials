@@ -5,6 +5,8 @@ using Plots
 using Printf
 using LaTeXStrings
 using Shell
+using Dates
+using Glob
 
 const H,iterations,randomMat,parameters = parseArguments()
 const unitSize = 1
@@ -162,3 +164,9 @@ for i in 1:repeatedSimulation
     plot!(energyPlt,weights[:,i],energyAbsorptions[:,i], seriestype = :scatter,label=labels[i])
 end
 png(energyPlt,"energies.png")
+
+currentTime = Dates.format(now(),"dd-mm-yyyy_HH:MM:SS")
+run(`mkdir Batch_$currentTime`)
+folders = glob("metamat*/")
+plots = glob("*.png")
+run(`mv $folders $plots results.csv Batch_$currentTime/`)

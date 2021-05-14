@@ -55,7 +55,17 @@ fig,ax = PyPlot.subplots(1,2)
 
 sets = size(data,1)÷4
 
+trendlines = []
+
+for i in 1:sets
+    x=data[i,:]; y=data[i+mode*sets,:]
+    push!(trendlines,(x'*x)\(x'*y))
+end
+
 sc = [ ax[1].scatter(data[i,:],data[i+mode*sets,:]) for i in 1:sets ]
+for i in 1:sets
+    ax[1].plot(data[i,:],data[i,:].*trendlines[i])
+end
 ax[1].set_xlabel("Area (cm2)")
 ax[1].set_ylabel(ylabels[mode])
 

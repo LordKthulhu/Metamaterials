@@ -100,3 +100,17 @@ function plotGeometry(skeleton)
     end
     barPlot
 end
+
+function plotModel(model)
+    polygons = []
+    points = model.points
+    for element in model.elements
+        P = [ points[findall(p->p.n==element.points[i],points)[1]] for i in 1:4 ]
+        push!(polygons, Shape((p->p.x).(P), (p->p.z).(P)))
+    end
+    plt = plot(axis = nothing,size=(800,800))
+    for polygon in polygons
+        plot!(plt,polygon,label=false,color=:grey)
+    end
+    png(plt,"modelPlot.png")
+end

@@ -26,7 +26,8 @@ export
     randomGeometry, plotGeometry,
     pBar, execute, parseArguments,
     runSteps, energy,
-    MetamatEnv, maxsteps, reset!, step!, actions, finished
+    MetamatEnv, maxsteps, reset!, step!, actions, finished,
+    fullScaleModelFromModel, plotModel
 
 include("structures.jl")
 include("simulationTools.jl")

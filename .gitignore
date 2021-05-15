@@ -9,3 +9,4 @@ results.csv
 parameters.csv
 tool.jl
 *.jld
+testscript.jl

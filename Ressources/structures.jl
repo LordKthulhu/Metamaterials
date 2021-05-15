@@ -28,7 +28,7 @@ end
 
 Base.copy(s::Skeleton) = Skeleton(s.size,s.nodes,s.links)
 
-function randomSkeleton(H::Int; p=0.35)
+function randomSkeleton(H::Int; p=0.3)
     potLinks = trues(H,H,4)
     nodes = falses(H, H)
     links = falses(H, H, 4)
@@ -146,6 +146,53 @@ function modelFromSkeleton(skeleton::Skeleton,material::Material,unitSize, baseP
     end
     weight = sum(skeleton.nodes .* nodeWeights) + sum(skeleton.links .* linkWeights)
     return Model(points, elements, loadPoints, boundaries, unitSize, skeleton.size, weight, material)
+end
+
+function fullScaleModelFromModel(model::Model)
+    basePoints = model.points
+    baseElements = model.elements
+    elements = deepcopy(baseElements)
+    points = deepcopy(basePoints)
+    currentPoint = basePoints[end].n+1
+    currentElement = baseElements[end].n+1
+    size = model.size
+    unitSize = model.unitSize
+
+    correspondance1 = [ basePoint.n for basePoint in basePoints ]
+    correspondance2 = [ basePoint.n for basePoint in basePoints ]
+
+    for i in 1:length(basePoints)
+        if basePoints[i].x != 12*(size-1)*unitSize
+            correspondance2[i] = currentPoint
+            push!(points, Point(currentPoint, [24*(size-1)*unitSize-basePoints[i].x,basePoints[i].y,basePoints[i].z]))
+            currentPoint += 1
+        end
+    end
+    for baseElement in baseElements
+        push!(elements, Element(currentElement, [ correspondance2[findall(x->x==baseElement.points[i],correspondance1)[1]] for i in 1:4 ]))
+        currentElement += 1
+    end
+
+    basePoints = deepcopy(points)
+    baseElements = deepcopy(elements)
+
+    correspondance1 = [ basePoint.n for basePoint in basePoints ]
+    correspondance2 = [ basePoint.n for basePoint in basePoints ]
+    currentPoint = basePoints[end].n+1
+    currentElement = baseElements[end].n+1
+
+    for i in 1:length(basePoints)
+        if basePoints[i].z != 12*(size-1)*unitSize
+            correspondance2[i] = currentPoint
+            push!(points, Point(currentPoint, [basePoints[i].x,basePoints[i].y,24*(size-1)*unitSize-basePoints[i].z]))
+            currentPoint += 1
+        end
+    end
+    for baseElement in baseElements
+        push!(elements, Element(currentElement, [ correspondance2[findall(x->x==baseElement.points[i],correspondance1)[1]] for i in 1:4 ]))
+        currentElement += 1
+    end
+    Model(points,elements,model.loadPoints, model.boundaries,unitSize,2*size-1,model.weight,model.material)
 end
 
 mutable struct Simulation

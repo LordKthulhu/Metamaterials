@@ -13,7 +13,7 @@ using JLD
 
 const H,iterations,randomMat,parameters = parseArguments()
 const unitSize = 1
-const dEpsilon = 2e-4
+const dEpsilon = 4e-4
 const nodeWeights = makeNodeWeights(H,unitSize)
 const linkWeights = makeLinkWeights(H,unitSize)
 const basePoints = makeBasePoints()
@@ -42,7 +42,6 @@ if parameters != "none"
 end
 
 simulations = [ emptySimulation("$iter-$j",dEpsilon) for iter in 1:iterations,  j in 1:repeatedSimulation ]
-allMaterials = [ [0.0,0.0] for i in 1:iterations ]
 
 @printf("Starting %dx%d simulations on %d threads.\n",iterations,repeatedSimulation,Threads.nthreads())
 
@@ -66,7 +65,6 @@ Threads.@threads for iter = 1:iterations
             peakStrain = round(0.01+0.05*rand(),digits=3)
             crackStrainRatio = round(0.05+0.045*rand(),digits=3)
             materials = [ Material(compressive,tensile,tensilePeak,peakStrain,crackStrainRatio) ]
-            allMaterials[iter][1] = tensile; allMaterials[iter][2] = compressive
         else
             materials = [ Material(45.0,4.8) ]
         end
@@ -86,6 +84,7 @@ Threads.@threads for iter = 1:iterations
     for simulation in simulations[iter,:]
         filename = simulation.filename
         run(`rm $filename/$filename-MECH.crk $filename/$filename-MECH.fld $filename/$filename-MECH.int $filename/$filename-MECH.tmp $filename-restart.aux`)
+        run(`mv $filename/aux.nod $filename/$filename-MECH.nod`)
         io = open(filename*"/"*filename*"-results.csv","a")
         writedlm(io,transpose(simulation.strain),",")
         writedlm(io,transpose(simulation.stress),",")
@@ -187,12 +186,19 @@ weights = [ simulation.model.weight for simulation in simulations ]
 maxStrains = [ maximum(simulation.strain) for simulation in simulations ]
 maxStresses = [ maximum(simulation.stress) for simulation in simulations ]
 energyAbsorptions = [ energy(simulation.strain,simulation.stress) for simulation in simulations ]
+materials = [ simulation.model.material for simulation in simulations ]
 
 io = open("results.csv","a")
 writedlm(io,transpose(weights),",")
 writedlm(io,transpose(maxStrains),",")
 writedlm(io,transpose(maxStresses),",")
 writedlm(io,transpose(energyAbsorptions),",")
+writedlm(io,transpose((m->m.isECC).(materials)),",")
+writedlm(io,transpose((m->m.compressive).(materials)),",")
+writedlm(io,transpose((m->m.tensile).(materials)),",")
+writedlm(io,transpose((m->m.tensilePeak).(materials)),",")
+writedlm(io,transpose((m->m.peakStrain).(materials)),",")
+writedlm(io,transpose((m->m.crackStrainRatio).(materials)),",")
 close(io)
 
 # General plots over all simulations
@@ -218,10 +224,10 @@ end
 png(energyPlt,"energies.png")
 
 save("skeletons.jld","skeletons",skeletonLinks)
-save("materials.jld","materials",allMaterials)
+save("materials.jld","materials",materials)
 
 currentTime = Dates.format(now(),"dd-mm-yyyy_HH:MM:SS")
 run(`mkdir Batch_$currentTime`)
 folders = glob("metamat*/")
 plots = glob("*.png")
-run(`mv $folders $plots results.csv skeletons.jld Batch_$currentTime/`)
+run(`mv $folders $plots results.csv skeletons.jld materials.jld Batch_$currentTime/`)

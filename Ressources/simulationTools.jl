@@ -74,9 +74,15 @@ function runSteps(simulation::Simulation)
     filename = simulation.filename
     run(`mv $filename.dat $filename`)
     simulation.exit = execute(filename)
-
     forces = forceSteps(filename)
     loadRange = [ (length(simulation.strain)+i)*simulation.dEpsilon for i=1:nSteps ]
+    if restart
+        a = "$filename/$filename-MECH.nod"
+        b = "$filename/aux.nod"
+        open(io -> run(pipeline(`cat $a`, stdout=io)), b, "a")
+    else
+        run(`mv $filename/$filename-MECH.nod $filename/aux.nod`)
+    end
 
     append!(simulation.strain, loadRange[1:length(forces)])
     area = 12*(simulation.model.size-1)*simulation.model.unitSize*1.0

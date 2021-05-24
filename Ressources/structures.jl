@@ -114,12 +114,13 @@ function modelFromSkeleton(skeleton::Skeleton,material::Material,unitSize, baseP
         if !( -1e-9 < point.x < 12*(skeleton.size-1)+1e-9 ) || !( -1e-9 < point.z < 12*(skeleton.size-1)+1e-9 )
             push!(forbiddenPoints, point.n)
         elseif point.z == 0
-            push!(loadPoints, [point.n,-1])
-            restraint[3] = '1'
-        elseif point.z == 12*(skeleton.size-1)*unitSize
             push!(loadPoints, [point.n,1])
             restraint[3] = '1'
-        elseif point.x == 12*(skeleton.size-1)*unitSize
+        elseif point.z == 12*(skeleton.size-1)*unitSize
+            push!(loadPoints, [point.n,-1])
+            restraint[3] = '1'
+        end
+        if point.x == 12*(skeleton.size-1)*unitSize
             restraint[1] = '1'
         end
         boundaries[point.n] = join(restraint)
@@ -209,10 +210,10 @@ function fullScaleModelFromModel(model::Model)
     for point in points
         restraint = collect("010")
         if point.z == 0
-            push!(loadPoints, [point.n,-1])
+            push!(loadPoints, [point.n,1])
             restraint[3] = '1'
         elseif point.z == 24*(size-1)*unitSize
-            push!(loadPoints, [point.n,1])
+            push!(loadPoints, [point.n,-1])
             restraint[3] = '1'
         end
         boundaries[point.n] = join(restraint)
@@ -239,7 +240,7 @@ function runSimulation(simulation::Simulation)
     filename = simulation.filename
     run(`mkdir $filename`)
     datFile = open("$filename.dat","w")
-    write(datFile, "Metamaterial Project\n1202000001000200000000002     0.700     0.000     0.000         0\nNODE\n")
+    write(datFile, "Metamaterial Project\n1202000001000100000000002     0.700     0.000     0.000         0\nNODE\n")
     for point in simulation.model.points
         write(datFile, nodeLine(point,simulation.model.boundaries[point.n]))
     end
@@ -254,21 +255,21 @@ function runSimulation(simulation::Simulation)
     lines = readlines("$filename.dat",keep=true)
     for i=1:length(lines)
         if i == 2
-            write(auxFile,"1212000001000200000000002     0.700     0.000     0.000         0\n")
+            write(auxFile,"1212000001000100000000002     0.700     0.000     0.000         0\n")
         else
             write(auxFile,lines[i])
         end
     end
     close(auxFile)
     runSteps(simulation)
-    while simulation.stress[end]/maximum(simulation.stress) > 0.5 && simulation.exit == 0 && simulation.step <= 150
+    while simulation.stress[end]/maximum(simulation.stress) > 0.05 && simulation.exit == 0 && simulation.step <= 150
         runSteps(simulation)
     end
 
     mechFiles = glob("$(filename)/MECHIFI*")
     run(`rm $mechFiles`)
 
-    if simulation.step > 150
+    if simulation.step > 200
         simulation.exit = 1
     end
 

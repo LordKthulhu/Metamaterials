@@ -3,6 +3,11 @@ using PyPlot
 using DelimitedFiles
 using Glob
 
+const possibleArgs = ["weight","strain","stress","energy","isECC","compressive","tensile","tensilePeak","failureStrain","crackStrainRatio"]
+const labels = [ "Area (cm2)", "Max Strain", "Max Stress (kgf/cm2)", "Energy", "isECC", "Material compressive strength (MPa)",
+                "Material tensile strength (MPa)", "Material strain at peak in tension", "Material strain at failure", "First cracking stress/tensile strength"]
+
+
 function hover(event)
     visLeft = [ a.get_visible() for a in annotLeft ]
     visRight = [ a.get_visible() for a in annotRight ]
@@ -30,36 +35,24 @@ function parseArguments()
     while currentArg <= length(ARGS)
         if ARGS[currentArg] in ["-X","-x"]
             arg = ARGS[currentArg+1]
-            if arg == "strain"
-                X = 1
-            elseif arg == "stress"
-                X = 2
-            elseif arg == "energy"
-                X = 3
-            elseif arg == "weight"
-                X = 0
+            if arg in possibleArgs
+                X = findall(a->a==arg,possibleArgs)[1]-1
             else
                 throw(ArgumentError("Unsupported argument : $(ARGS[currentArg]). For available arguments, type -help."))
             end
             currentArg += 2
         elseif ARGS[currentArg] in ["-Y","-y"]
             arg = ARGS[currentArg+1]
-            if arg == "strain"
-                Y = 1
-            elseif arg == "stress"
-                Y = 2
-            elseif arg == "energy"
-                Y = 3
-            elseif arg == "weight"
-                Y = 0
+            if arg in possibleArgs
+                Y = findall(a->a==arg,possibleArgs)[1]-1
             else
                 throw(ArgumentError("Unsupported argument : $(ARGS[currentArg]). For available arguments, type -help."))
             end
             currentArg += 2
         elseif ARGS[currentArg] == "-help"
             println("Supported arguments are:\n
-               -X           Value fo X axis : strain, stress, energy or weight.\n
-               -Y           Value for Y axis : strain, stress, energy or weight.\n")
+               -X           Value for X axis : $(prod([arg*", " for arg in possibleArgs])[1:end-2]).\n
+               -Y           Value for Y axis : $(prod([arg*", " for arg in possibleArgs])[1:end-2]).\n")
             exit(0)
         else
             throw(ArgumentError("Unsupported argument : $(ARGS[currentArg]). For available arguments, type -help."))
@@ -69,8 +62,6 @@ function parseArguments()
     (@isdefined Y) ? nothing : Y = 2
     (X,Y)
 end
-
-labels = [ "Area (cm2)", "Max Strain", "Max Stress (kgf/cm2)", "Energy"]
 
 X,Y = parseArguments()
 
@@ -86,7 +77,7 @@ stressImageBoxes = [ matplotlib.offsetbox.OffsetImage(stressPlots[i], zoom=0.9) 
 
 fig,ax = PyPlot.subplots(1,2)
 
-sets = size(data,1)÷4
+sets = size(data,1)÷length(possibleArgs)
 
 trendlines = []
 

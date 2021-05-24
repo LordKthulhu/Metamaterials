@@ -7,6 +7,10 @@ chainBuilder.jl
 *.png
 results.csv
 parameters.csv
+LineRegResults.csv
+NNresults.csv
+StrainHard.csv
+ioflagtemp.txt
 tool.jl
 *.jld
 testscript.jl

@@ -70,7 +70,7 @@ function randomGeometry(H,nodes,links,potLinks; p=0.7)
     end
 end
 
-function plotGeometry(skeleton)
+function plotGeometry(skeleton::Skeleton)
     barPlot = []
     H = skeleton.size
     for i in 1:H, j in 1:H
@@ -101,6 +101,21 @@ function plotGeometry(skeleton)
     barPlot
 end
 
+function plotGeometry(model::Model)
+    H = model.size
+    polygons = []
+    points = model.points
+    for element in model.elements
+        P = [ points[findall(p->p.n==element.points[i],points)[1]] for i in 1:4 ]
+        X = (p->p.x).(P); Y = (p->p.z).(P)
+        push!(polygons, Shape(X, Y))
+        push!(polygons, Shape(24*(H-1).-X, Y))
+        push!(polygons, Shape(X, 24*(H-1).-Y))
+        push!(polygons, Shape(24*(H-1).-X, 24*(H-1).-Y))
+    end
+    polygons
+end
+
 function plotModel(model)
     polygons = []
     points = model.points
@@ -108,7 +123,7 @@ function plotModel(model)
         P = [ points[findall(p->p.n==element.points[i],points)[1]] for i in 1:4 ]
         push!(polygons, Shape((p->p.x).(P), (p->p.z).(P)))
     end
-    plt = plot(axis = nothing,size=(800,800))
+    plt = plot(size=(800,800)) #axis = nothing
     for polygon in polygons
         plot!(plt,polygon,label=false,color=:grey)
     end

@@ -25,21 +25,54 @@ function hover(event)
     end
 end
 
-ylabels = [ "Max Strain", "Max Stress (kgf/cm2)", "Energy"]
-
-mode = 2
-
-if length(ARGS)>0
-    if ARGS[1] == "strain"
-        mode = 1
-    elseif ARGS[1] == "stress"
-        mode = 2
-    elseif ARGS[1] == "energy"
-        mode = 3
-    else
-        throw(ArgumentError("Unsupported argument : $(ARGS[1]). Possible arguments are strain, stress, or energy.\n"))
+function parseArguments()
+    currentArg = 1
+    while currentArg <= length(ARGS)
+        if ARGS[currentArg] in ["-X","-x"]
+            arg = ARGS[currentArg+1]
+            if arg == "strain"
+                X = 1
+            elseif arg == "stress"
+                X = 2
+            elseif arg == "energy"
+                X = 3
+            elseif arg == "weight"
+                X = 0
+            else
+                throw(ArgumentError("Unsupported argument : $(ARGS[currentArg]). For available arguments, type -help."))
+            end
+            currentArg += 2
+        elseif ARGS[currentArg] in ["-Y","-y"]
+            arg = ARGS[currentArg+1]
+            if arg == "strain"
+                Y = 1
+            elseif arg == "stress"
+                Y = 2
+            elseif arg == "energy"
+                Y = 3
+            elseif arg == "weight"
+                Y = 0
+            else
+                throw(ArgumentError("Unsupported argument : $(ARGS[currentArg]). For available arguments, type -help."))
+            end
+            currentArg += 2
+        elseif ARGS[currentArg] == "-help"
+            println("Supported arguments are:\n
+               -X           Value fo X axis : strain, stress, energy or weight.\n
+               -Y           Value for Y axis : strain, stress, energy or weight.\n")
+            exit(0)
+        else
+            throw(ArgumentError("Unsupported argument : $(ARGS[currentArg]). For available arguments, type -help."))
+        end
     end
+    (@isdefined X) ? nothing : X = 0
+    (@isdefined Y) ? nothing : Y = 2
+    (X,Y)
 end
+
+labels = [ "Area (cm2)", "Max Strain", "Max Stress (kgf/cm2)", "Energy"]
+
+X,Y = parseArguments()
 
 data = readdlm("results.csv",',')
 
@@ -58,16 +91,16 @@ sets = size(data,1)÷4
 trendlines = []
 
 for i in 1:sets
-    x=data[i,:]; y=data[i+mode*sets,:]
+    x=data[i+X*sets,:]; y=data[i+Y*sets,:]
     push!(trendlines,(x'*x)\(x'*y))
 end
 
-sc = [ ax[1].scatter(data[i,:],data[i+mode*sets,:]) for i in 1:sets ]
+sc = [ ax[1].scatter(data[i+X*sets,:],data[i+Y*sets,:]) for i in 1:sets ]
 for i in 1:sets
-    ax[1].plot(data[i,:],data[i,:].*trendlines[i])
+    ax[1].plot(data[i+X*sets,:],data[i+X*sets,:].*trendlines[i])
 end
-ax[1].set_xlabel("Area (cm2)")
-ax[1].set_ylabel(ylabels[mode])
+ax[1].set_xlabel(labels[X+1])
+ax[1].set_ylabel(labels[Y+1])
 
 ax[2].set_axis_off()
 

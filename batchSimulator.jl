@@ -7,6 +7,9 @@ using LaTeXStrings
 using Shell
 using Dates
 using Glob
+using PyCall
+using PyPlot
+using JLD
 
 const H,iterations,randomMat,parameters = parseArguments()
 const unitSize = 1
@@ -39,6 +42,7 @@ if parameters != "none"
 end
 
 simulations = [ emptySimulation("$iter-$j",dEpsilon) for iter in 1:iterations,  j in 1:repeatedSimulation ]
+allMaterials = [ [0.0,0.0] for i in 1:iterations ]
 
 @printf("Starting %dx%d simulations on %d threads.\n",iterations,repeatedSimulation,Threads.nthreads())
 
@@ -54,13 +58,17 @@ Threads.@threads for iter = 1:iterations
 
         materials = []
         if parameters != "none"
-            materials = [ Material(true,parameterValues[i,1],parameterValues[i,2]) for i in 1:size(parameterValues,1) ]
+            materials = [ Material(parameterValues[i,1],parameterValues[i,2],parameterValues[i,3],parameterValues[i,4],parameterValues[i,5]) for i in 1:size(parameterValues,1) ]
         elseif randomMat
             tensile = round(3+2*rand(),digits=2)
             compressive = round(30+20*rand(),digits=2)
-            materials = [ Material(true,compressive,tensile) ]
+            tensilePeak = round(0.002+0.005*rand(),digits=4)
+            peakStrain = round(0.01+0.05*rand(),digits=3)
+            crackStrainRatio = round(0.05+0.045*rand(),digits=3)
+            materials = [ Material(compressive,tensile,tensilePeak,peakStrain,crackStrainRatio) ]
+            allMaterials[iter][1] = tensile; allMaterials[iter][2] = compressive
         else
-            materials = [ Material(true,45.0,4.8) ]
+            materials = [ Material(45.0,4.8) ]
         end
 
         skeleton = randomSkeleton(H)
@@ -86,9 +94,37 @@ Threads.@threads for iter = 1:iterations
     next!(progress)
 end
 
+GC.gc(true)
+
 ################################################################################
 #####                           RESULTS OUTPUT                             #####
 ################################################################################
+
+isStrainHardening = [ false for i in 1:iterations ]
+for iter in 1:iterations
+    stress = simulations[iter,1].stress
+    maxi = 0; current = stress[1]
+    index = 1
+    while index <= length(stress)-1 && current > 0.9 * maxi
+        current > maxi ? maxi = current : nothing
+        index += 1
+        current = stress[index]
+    end
+    mini = current
+    while index <= length(stress)-1
+        current < mini ? mini = current : nothing
+        if current > 1.15 * mini
+            isStrainHardening[iter] = true
+            break
+        end
+        index += 1
+        current = stress[index]
+    end
+end
+
+io=open("StrainHard.csv","w")
+writedlm(io,isStrainHardening,',')
+close(io)
 
 # Number of unique simulations
 
@@ -99,10 +135,26 @@ end
 progress = pBar(2*iterations,"Plotting...          ",dt=0.5)
 
 for i=1:iterations
-    plt = plot(showaxis=false,size=(400,400),title="Metamaterial $i")
+    # fig = PyPlot.figure()
+    # PyPlot.title("Metamaterial $i")
+    # points = simulations[i,1].model.points
+    # for element in simulations[i,1].model.elements
+    #     P = [ points[findall(p->p.n==element.points[i],points)[1]] for i in 1:4 ]
+    #     X = (p->p.x).(P); Y = (p->p.z).(P)
+    #     PyPlot.fill(X,Y, facecolor = "gray", edgecolor = "black")
+    #     PyPlot.fill(24*(H-1).-X, Y, facecolor = "gray", edgecolor = "black")
+    #     PyPlot.fill(X, 24*(H-1).-Y, facecolor = "gray", edgecolor = "black")
+    #     PyPlot.fill(24*(H-1).-X, 24*(H-1).-Y, facecolor = "gray", edgecolor = "black")
+    # end
+    # PyPlot.savefig("metamat"*string(i)*"-1/metamat"*string(i)*"-barplot.png",dpi=200)
+
+    plt = Plots.plot(showaxis=false,size=(400,400),title="Metamaterial $i")
     for line in barPlots[i]
         plot!(plt, line[1], line[2], lw =3, lc = :black, label = false)
     end
+    # for polygon in  barPlots[i]
+    #     plot!(plt,polygon,label=false,color=:grey)
+    # end
     png(plt,"metamat"*string(i)*"-1/metamat"*string(i)*"-barplot.png")
     next!(progress)
     #sleep(0.01)
@@ -120,7 +172,7 @@ end
 
 for iter=1:iterations
     plotfile = "metamat$iter-1/metamat$iter-plot.png"
-    plt = plot(lw = 3, xlabel = "Strain", ylabel = "Overall Stress (kg/cm2)", palette = :tab10, ylims = (0,Inf))
+    plt = Plots.plot(lw = 3, xlabel = "Strain", ylabel = "Overall Stress (kg/cm2)", palette = :tab10, ylims = (0,Inf))
     for i in 1:repeatedSimulation
         plot!(plt,simulations[iter,i].strain,simulations[iter,i].stress, label=labels[i])
     end
@@ -145,28 +197,31 @@ close(io)
 
 # General plots over all simulations
 
-strainsPlt = plot(xlabel = "Area (cm2)",ylabel = "Failure strain", palette = :tab10)
+strainsPlt = Plots.plot(xlabel = "Area (cm2)",ylabel = "Failure strain", palette = :tab10)
 for i in 1:repeatedSimulation
     plot!(strainsPlt, weights[:,i], maxStrains[:,i], seriestype = :scatter, label=labels[i])
 end
 png(strainsPlt,"strains.png")
 
 sleep(0.1)
-stressPlt = plot(xlabel = "Area (cm2)",ylabel = "Failure stress", palette = :tab10)
+stressPlt = Plots.plot(xlabel = "Area (cm2)",ylabel = "Failure stress", palette = :tab10)
 for i in 1:repeatedSimulation
      plot!(stressPlt,weights[:,i],maxStresses[:,i], seriestype = :scatter, label=labels[i])
 end
 png(stressPlt,"stresses.png")
 
 sleep(0.1)
-energyPlt = plot(xlabel = "Area (cm2)",ylabel = "Absorbed energy at failure", palette = :tab10)
+energyPlt = Plots.plot(xlabel = "Area (cm2)",ylabel = "Absorbed energy at failure", palette = :tab10)
 for i in 1:repeatedSimulation
     plot!(energyPlt,weights[:,i],energyAbsorptions[:,i], seriestype = :scatter,label=labels[i])
 end
 png(energyPlt,"energies.png")
 
+save("skeletons.jld","skeletons",skeletonLinks)
+save("materials.jld","materials",allMaterials)
+
 currentTime = Dates.format(now(),"dd-mm-yyyy_HH:MM:SS")
 run(`mkdir Batch_$currentTime`)
 folders = glob("metamat*/")
 plots = glob("*.png")
-run(`mv $folders $plots results.csv Batch_$currentTime/`)
+run(`mv $folders $plots results.csv skeletons.jld Batch_$currentTime/`)

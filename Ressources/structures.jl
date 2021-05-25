@@ -262,7 +262,7 @@ function runSimulation(simulation::Simulation)
     end
     close(auxFile)
     runSteps(simulation)
-    while simulation.stress[end]/maximum(simulation.stress) > 0.05 && simulation.exit == 0 && simulation.step <= 150
+    while simulation.stress[end]/maximum(simulation.stress) > 0.4 && simulation.exit == 0 && simulation.step <= 150
         runSteps(simulation)
     end
 

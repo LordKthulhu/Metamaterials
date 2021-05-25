@@ -14,3 +14,4 @@ ioflagtemp.txt
 tool.jl
 *.jld
 testscript.jl
+LRresults.csv

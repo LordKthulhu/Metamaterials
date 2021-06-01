@@ -57,10 +57,10 @@ Threads.@threads for iter = 1:iterations
 
         materials = []
         if parameters != "none"
-            materials = [ Material(parameterValues[i,1],parameterValues[i,2],parameterValues[i,3],parameterValues[i,4],parameterValues[i,5]) for i in 1:size(parameterValues,1) ]
+            materials = [ Material(parameterValues[i,1],parameterValues[i,2],parameterValues[i,3],parameterValues[i,4],parameterValues[i,5],parameterValues[i,6]) for i in 1:size(parameterValues,1) ]
         elseif randomMat
-            tensile = round(3+2*rand(),digits=2)
             compressive = round(30+20*rand(),digits=2)
+            tensile = round(3+2*rand(),digits=2)
             tensilePeak = round(0.002+0.005*rand(),digits=4)
             peakStrain = round(0.01+0.05*rand(),digits=3)
             crackStrainRatio = round(0.05+0.045*rand(),digits=3)
@@ -74,6 +74,7 @@ Threads.@threads for iter = 1:iterations
 
         for i in 1:repeatedSimulation
             model = modelFromSkeleton(skeleton, materials[i], unitSize, basePoints, baseElements, nodeWeights, linkWeights)
+            #model = fullScaleModelFromModel(fullScaleModelFromModel(model))
             simulations[iter,i].model = model
             simulations[iter,i].step = 0; simulations[iter,i].strain = []; simulations[iter,i].stress = []
             runSimulation(simulations[iter,i])
@@ -83,8 +84,7 @@ Threads.@threads for iter = 1:iterations
 
     for simulation in simulations[iter,:]
         filename = simulation.filename
-        run(`rm $filename/$filename-MECH.crk $filename/$filename-MECH.fld $filename/$filename-MECH.int $filename/$filename-MECH.tmp $filename-restart.aux`)
-        run(`mv $filename/aux.nod $filename/$filename-MECH.nod`)
+        run(`rm $filename/$filename-MECH.int $filename/$filename-MECH.tmp $filename-restart.aux`)
         io = open(filename*"/"*filename*"-results.csv","a")
         writedlm(io,transpose(simulation.strain),",")
         writedlm(io,transpose(simulation.stress),",")
@@ -203,21 +203,21 @@ close(io)
 
 # General plots over all simulations
 
-strainsPlt = Plots.plot(xlabel = "Area (cm2)",ylabel = "Failure strain", palette = :tab10)
+strainsPlt = Plots.plot(xlabel = "Area (cm2)",ylabel = "Failure strain", palette = :tab10, legend =:topleft)
 for i in 1:repeatedSimulation
     plot!(strainsPlt, weights[:,i], maxStrains[:,i], seriestype = :scatter, label=labels[i])
 end
 png(strainsPlt,"strains.png")
 
 sleep(0.1)
-stressPlt = Plots.plot(xlabel = "Area (cm2)",ylabel = "Failure stress", palette = :tab10)
+stressPlt = Plots.plot(xlabel = "Area (cm2)",ylabel = "Failure stress", palette = :tab10, legend =:topleft)
 for i in 1:repeatedSimulation
      plot!(stressPlt,weights[:,i],maxStresses[:,i], seriestype = :scatter, label=labels[i])
 end
 png(stressPlt,"stresses.png")
 
 sleep(0.1)
-energyPlt = Plots.plot(xlabel = "Area (cm2)",ylabel = "Absorbed energy at failure", palette = :tab10)
+energyPlt = Plots.plot(xlabel = "Area (cm2)",ylabel = "Absorbed energy at failure", palette = :tab10, legend =:topleft)
 for i in 1:repeatedSimulation
     plot!(energyPlt,weights[:,i],energyAbsorptions[:,i], seriestype = :scatter,label=labels[i])
 end

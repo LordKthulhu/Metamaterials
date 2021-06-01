@@ -7,6 +7,7 @@ using Glob
 using ProgressMeter
 using LaTeXStrings
 using Shell
+using Statistics
 using Reinforce: AbstractEnvironment
 
 

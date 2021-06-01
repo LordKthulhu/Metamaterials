@@ -1,5 +1,7 @@
 *.exe
 *.dll
+*.gif
+plotSkel.jl
 metamat[1-9]*
 metamatcurrent*
 metamatplain*

@@ -23,6 +23,7 @@ struct Material
     crackStrainRatio::Float64
     Material(compressive,tensile) = new(true,compressive,tensile,0.005,0.046,0.8)
     Material(compressive,tensile,tensilePeak,peakStrain,crackStrainRatio) = new(true,compressive,tensile,tensilePeak,peakStrain,crackStrainRatio)
+    Material(isECC,compressive,tensile,tensilePeak,peakStrain,crackStrainRatio) = new(isECC,compressive,tensile,tensilePeak,peakStrain,crackStrainRatio)
 end
 
 struct Skeleton
@@ -236,11 +237,11 @@ function emptySimulation(iter,dEpsilon::Float64)
     return Simulation("metamat$iter",Model([],[],[],[],0,0,0,Material(0,0)),dEpsilon,0,1,[],[])
 end
 
-function runSimulation(simulation::Simulation)
+function runSimulation(simulation::Simulation;crit=0.20)
     filename = simulation.filename
     run(`mkdir $filename`)
     datFile = open("$filename.dat","w")
-    write(datFile, "Metamaterial Project\n1202000001000100000000002     0.700     0.000     0.000         0\nNODE\n")
+    write(datFile, "Metamaterial Project\n1202000011000000000000002     0.700     0.000     0.000         0\nNODE\n")
     for point in simulation.model.points
         write(datFile, nodeLine(point,simulation.model.boundaries[point.n]))
     end
@@ -255,19 +256,25 @@ function runSimulation(simulation::Simulation)
     lines = readlines("$filename.dat",keep=true)
     for i=1:length(lines)
         if i == 2
-            write(auxFile,"1212000001000100000000002     0.700     0.000     0.000         0\n")
+            write(auxFile,"1212000011000000000000002     0.700     0.000     0.000         0\n")
         else
             write(auxFile,lines[i])
         end
     end
     close(auxFile)
     runSteps(simulation)
-    while simulation.stress[end]/maximum(simulation.stress) > 0.4 && simulation.exit == 0 && simulation.step <= 150
+    while ( simulation.stress[end]/maximum(simulation.stress) > crit || std(simulation.stress[end-5:end]) > 0.3 ) && simulation.exit == 0 && simulation.step <= 200
         runSteps(simulation)
     end
 
     mechFiles = glob("$(filename)/MECHIFI*")
     run(`rm $mechFiles`)
+    addSteps(simulation.model.loadPoints, 0, simulation.dEpsilon,
+    simulation.model.unitSize, simulation.model.size, simulation.filename, restart = true, nSteps = simulation.step)
+    run(`mv $filename.dat $filename`)
+    run(`mv $filename/aux.nod $filename/$filename-MECH.nod`)
+    run(`mv $filename/aux.crk $filename/$filename-MECH.crk`)
+    run(`mv $filename/aux.fld $filename/$filename-MECH.fld`)
 
     if simulation.step > 200
         simulation.exit = 1

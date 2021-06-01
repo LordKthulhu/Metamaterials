@@ -37,25 +37,30 @@ function makeBaseElements(H)
 end
 
 
-function randomGeometry(H,nodes,links,potLinks; p=0.7)
+function randomGeometry(H,nodes,links,potLinks; p=0.5)
     for i in 1:H-1
-        i == 1 ? nodes[1,:] = rand(H) .< p : nothing
-        nodes[1,1] = true
-        for j in 1:H
-            if nodes[i,j]
-                potLinksCount = length(findall(potLinks[i,j,:]))
-                for l in 1:rand(1:potLinksCount)
-                    index = rand(findall(potLinks[i,j,:]))
-                    links[i,j,index] = true; potLinks[i,j,index] = false
-                    if index == 1
-                        nodes[i+1,j-1] = true
-                    elseif index == 2
-                        nodes[i+1,j] = true
-                    elseif index == 3
-                        nodes[i+1,j+1] = true
-                        potLinks[i,j+1,1] = false
-                    else
-                        nodes[i,j+1] = true
+        if i == 1
+            while nodes[1,:] == falses(H)
+                nodes[1,:] = rand(H) .< p
+            end
+        end
+        while nodes[i+1,:] == falses(H)
+            for j in 1:H
+                if nodes[i,j]
+                    potLinksCount = length(findall(potLinks[i,j,:]))
+                    for l in 1:rand(0:potLinksCount)
+                        index = rand(findall(potLinks[i,j,:]))
+                        links[i,j,index] = true; potLinks[i,j,index] = false
+                        if index == 1
+                            nodes[i+1,j-1] = true
+                        elseif index == 2
+                            nodes[i+1,j] = true
+                        elseif index == 3
+                            nodes[i+1,j+1] = true
+                            potLinks[i,j+1,1] = false
+                        else
+                            nodes[i,j+1] = true
+                        end
                     end
                 end
             end

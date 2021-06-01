@@ -13,11 +13,12 @@ end
 function elementLine(element::Element, material::Material)
 
     sn = string(element.n); P = string.(element.points); sTensile = @sprintf("%.2f",10*material.tensile); sCompressive = @sprintf("%.2f",10*material.compressive)
+    sTensilePeak = @sprintf("%.4f",material.tensilePeak); sPeakStrain = @sprintf("%.3f",material.peakStrain); sCrackStrainRatio = @sprintf("%.3f",material.crackStrainRatio)
     material.isECC ? mat="3" : mat="0"
 
     "PLAT " *" "^(5-length(sn)) * sn * " "^(5-length(P[1])) * P[1] * " "^(5-length(P[2])) * P[2] * " "^(5-length(P[3])) * P[3] *
     " "^(5-length(P[4])) * P[4] * "    0    0    0    0    0    0    0    0    0\n" *
-    "    0    0    0    0    0    0    0    "*mat*"       0.0       1.0    3000.0 0.0025000       0.0                                                                                                         0.005     0.046       0.8\n" *
+    "    0    0    0    0    0    0    0    "*mat*"       0.0       1.0    3000.0 0.0025000       0.0                                                                                                    " * " "^(10-length(sTensilePeak)) * sTensilePeak * " "^(10-length(sPeakStrain)) * sPeakStrain * " "^(10-length(sCrackStrainRatio)) * sCrackStrainRatio * "\n" *
     " "^(10-length(sCompressive)) * sCompressive * " "^(10-length(sTensile)) * sTensile * "      0.17    0\n" *
     " 2100000.0    4000.0   0.00000 2100000.0    4000.0   0.00000       0.0       0.0       0.0\n"
 end

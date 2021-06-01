@@ -80,8 +80,16 @@ function runSteps(simulation::Simulation)
         a = "$filename/$filename-MECH.nod"
         b = "$filename/aux.nod"
         open(io -> run(pipeline(`cat $a`, stdout=io)), b, "a")
+        a = "$filename/$filename-MECH.crk"
+        b = "$filename/aux.crk"
+        open(io -> run(pipeline(`cat $a`, stdout=io)), b, "a")
+        a = "$filename/$filename-MECH.fld"
+        b = "$filename/aux.fld"
+        open(io -> run(pipeline(`cat $a`, stdout=io)), b, "a")
     else
         run(`mv $filename/$filename-MECH.nod $filename/aux.nod`)
+        run(`mv $filename/$filename-MECH.crk $filename/aux.crk`)
+        run(`mv $filename/$filename-MECH.fld $filename/aux.fld`)
     end
 
     append!(simulation.strain, loadRange[1:length(forces)])

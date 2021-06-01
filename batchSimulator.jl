@@ -164,7 +164,7 @@ end
 if randomMat
     labels = [ "Random material properties" ]
 elseif repeatedSimulation > 1
-    labels = [ L"\sigma_c = %$(parameterValues[i,1]) MPa, \sigma_t = %$(parameterValues[i,2]) MPa" for i in 1:repeatedSimulation ]
+    labels = [ L"\sigma_c = %$(parameterValues[i,2]) MPa, \sigma_t = %$(parameterValues[i,3]) MPa" for i in 1:repeatedSimulation ]
 else
     labels = [ L"\sigma_c = 45 MPa, \sigma_t = 4.8 MPa" for i in 1:repeatedSimulation ]
 end

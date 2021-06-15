@@ -6,7 +6,7 @@ using LaTeXStrings
 
 H=3
 
-const defFactor = 2
+const defFactor = 1
 
 const cmap2 =  reverse(colormap("Reds",101))
 const cmap1 = reverse(colormap("Blues",101))
@@ -122,7 +122,7 @@ l = [ @layout [ a b; c{0.05h} d{0.05h}] for i in 1:Nsteps]
 # end
 # png(plt0,"step000.png")
 
-for stepn in 1:Nsteps
+for stepn in 1:10:Nsteps
     plt1 = plot(size=(800,800),axis=([], false),xlims=(-10,58),ylims=(-10,58),title=L"\sigma_{I}",border=false)
     plt2 = plot(size=(800,800),axis=([], false),xlims=(-10,58),ylims=(-10,58),title=L"\sigma_{II}",border=false)
     Xmax = maximum(getindex.(steps[stepn],1)); Ymax = maximum(getindex.(steps[stepn],2))

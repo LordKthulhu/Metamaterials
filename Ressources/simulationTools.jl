@@ -75,7 +75,7 @@ function runSteps(simulation::Simulation)
     run(`mv $filename.dat $filename`)
     simulation.exit = execute(filename)
     forces = forceSteps(filename)
-    loadRange = [ (length(simulation.strain)+i)*simulation.dEpsilon for i=1:nSteps ]
+    loadRange = [ (length(simulation.strain)+i)*simulation.dEpsilon*(1+simulation.step÷20) for i=1:nSteps ]  #loadRange = [ (length(simulation.strain)+i)*simulation.dEpsilon for i=1:nSteps ]
     if restart
         a = "$filename/$filename-MECH.nod"
         b = "$filename/aux.nod"

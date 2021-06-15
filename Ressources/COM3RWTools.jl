@@ -20,7 +20,7 @@ function elementLine(element::Element, material::Material)
     " "^(5-length(P[4])) * P[4] * "    0    0    0    0    0    0    0    0    0\n" *
     "    0    0    0    0    0    0    0    "*mat*"       0.0       1.0    3000.0 0.0025000       0.0                                                                                                    " * " "^(10-length(sTensilePeak)) * sTensilePeak * " "^(10-length(sPeakStrain)) * sPeakStrain * " "^(10-length(sCrackStrainRatio)) * sCrackStrainRatio * "\n" *
     " "^(10-length(sCompressive)) * sCompressive * " "^(10-length(sTensile)) * sTensile * "      0.17    0\n" *
-    " 2100000.0    4000.0   0.00000 2100000.0    4000.0   0.00000       0.0       0.0       0.0\n"
+    " 2000000.0    4000.0     0.000 2000000.0    4000.0     0.000" * " "^70 *"       2.0       2.0\n"
 end
 
 function loadLine(n,F)

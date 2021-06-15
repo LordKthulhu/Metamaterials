@@ -4,7 +4,7 @@ using DelimitedFiles
 using Glob
 
 const possibleArgs = ["weight","strain","stress","energy","isECC","compressive","tensile","tensilePeak","failureStrain","crackStrainRatio"]
-const labels = [ "Area (cm2)", "Max Strain", "Max Stress (kgf/cm2)", "Energy", "isECC", "Material compressive strength (MPa)",
+labels = [ "Area (cm2)", "Max Strain", "Max Stress (kgf/cm2)", "Energy", "isECC", "Material compressive strength (MPa)",
                 "Material tensile strength (MPa)", "Material strain at peak in tension", "Material strain at failure", "First cracking stress/tensile strength"]
 
 
@@ -49,6 +49,9 @@ function parseArguments()
                 throw(ArgumentError("Unsupported argument : $(ARGS[currentArg]). For available arguments, type -help."))
             end
             currentArg += 2
+        elseif ARGS[currentArg] == "-normalize"
+            normalize = true
+            currentArg += 1
         elseif ARGS[currentArg] == "-help"
             println("Supported arguments are:\n
                -X           Value for X axis : $(prod([arg*", " for arg in possibleArgs])[1:end-2]).\n
@@ -60,12 +63,21 @@ function parseArguments()
     end
     (@isdefined X) ? nothing : X = 0
     (@isdefined Y) ? nothing : Y = 2
-    (X,Y)
+    (@isdefined normalize) ? nothing : normalize = false
+    (X,Y,normalize)
 end
 
-X,Y = parseArguments()
+X,Y,normalize = parseArguments()
 
 data = readdlm("results.csv",',')
+
+if normalize
+    labels = "Normalized " .* labels
+    for i in reverse(1:size(data,1))
+        data[i,:] = data[i,:]./data[1,:]
+    end
+end
+
 
 const N = length(glob("*-1/"))
 

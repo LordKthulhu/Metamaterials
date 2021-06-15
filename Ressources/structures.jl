@@ -32,23 +32,21 @@ struct Skeleton
     links::Array{Bool,3}
 end
 
-Base.copy(s::Skeleton) = Skeleton(s.size,s.nodes,s.links)
+Base.copy(s::Skeleton) = Skeleton(s.size,deepcopy(s.nodes),deepcopy(s.links))
 
 function randomSkeleton(H::Int; p=0.5)
     potLinks = trues(H,H,4)
-    nodes = falses(H, H)
-    links = falses(H, H, 4)
     potLinks[:,1,1] = falses(H)
     potLinks[:,H,3:4] = falses(H,2)
     potLinks[H,:,:] = falses(H,4)
-    randomGeometry(H,nodes,links,potLinks, p=p)
+    nodes,links = randomGeometry(H,potLinks, p=p)
     return Skeleton(H,nodes,links)
 end
 
 function alteredSkeleton(skeleton::Skeleton, linkCoor, linkValue)
     nodes = falses(skeleton.size, skeleton.size)
     links = skeleton.links
-    links[linkCoor] = linkValue
+    links[linkCoor] += linkValue
     for link in findall(links)
         if link[1]!=0 && link[2]!=0
             nodes[link[1],link[2]] = true
@@ -237,7 +235,7 @@ function emptySimulation(iter,dEpsilon::Float64)
     return Simulation("metamat$iter",Model([],[],[],[],0,0,0,Material(0,0)),dEpsilon,0,1,[],[])
 end
 
-function runSimulation(simulation::Simulation;crit=0.20)
+function runSimulation(simulation::Simulation;crit=0.15)
     filename = simulation.filename
     run(`mkdir $filename`)
     datFile = open("$filename.dat","w")
@@ -263,7 +261,7 @@ function runSimulation(simulation::Simulation;crit=0.20)
     end
     close(auxFile)
     runSteps(simulation)
-    while ( simulation.stress[end]/maximum(simulation.stress) > crit || std(simulation.stress[end-5:end]) > 0.3 ) && simulation.exit == 0 && simulation.step <= 200
+    while simulation.strain[end] < 0.2 && simulation.exit == 0 #&& simulation.stress[end]/maximum(simulation.stress) > 0.25 && ( simulation.stress[end]/maximum(simulation.stress) > 0.4 || std(simulation.stress[end-5:end]) > 0.35 )
         runSteps(simulation)
     end
 
@@ -276,9 +274,9 @@ function runSimulation(simulation::Simulation;crit=0.20)
     run(`mv $filename/aux.crk $filename/$filename-MECH.crk`)
     run(`mv $filename/aux.fld $filename/$filename-MECH.fld`)
 
-    if simulation.step > 200
-        simulation.exit = 1
-    end
+    # if simulation.step > 200
+    #     simulation.exit = 1
+    # end
 
     if simulation.exit == 1
         #println("Simulation $filename failed. Starting over.")

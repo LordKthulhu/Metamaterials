@@ -7,13 +7,11 @@ using LaTeXStrings
 using Shell
 using Dates
 using Glob
-using PyCall
-using PyPlot
 using JLD
 
 const H,iterations,randomMat,parameters = parseArguments()
 const unitSize = 1
-const dEpsilon = 4e-4
+const dEpsilon = 5e-4
 const nodeWeights = makeNodeWeights(H,unitSize)
 const linkWeights = makeLinkWeights(H,unitSize)
 const basePoints = makeBasePoints()
@@ -63,7 +61,7 @@ Threads.@threads for iter = 1:iterations
             tensile = round(3+2*rand(),digits=2)
             tensilePeak = round(0.002+0.005*rand(),digits=4)
             peakStrain = round(0.01+0.05*rand(),digits=3)
-            crackStrainRatio = round(0.05+0.045*rand(),digits=3)
+            crackStrainRatio = round(0.7+0.25*rand(),digits=2)
             materials = [ Material(compressive,tensile,tensilePeak,peakStrain,crackStrainRatio) ]
         else
             materials = [ Material(45.0,4.8) ]
@@ -77,7 +75,7 @@ Threads.@threads for iter = 1:iterations
             #model = fullScaleModelFromModel(fullScaleModelFromModel(model))
             simulations[iter,i].model = model
             simulations[iter,i].step = 0; simulations[iter,i].strain = []; simulations[iter,i].stress = []
-            runSimulation(simulations[iter,i])
+            runSimulation(simulations[iter,i],crit = 9.172/(12*(2*H-1)))
         end
         skeletonLinks[iter] = skeleton.links
     end

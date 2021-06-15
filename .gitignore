@@ -15,5 +15,8 @@ StrainHard.csv
 ioflagtemp.txt
 tool.jl
 *.jld
+*.jld2
 testscript.jl
 LRresults.csv
+*test.jl
+COM3RL2.jl

@@ -19,7 +19,7 @@ export
     next!,
     Point,
     Element,
-    Material,
+    Material, randonMaterial,
     Skeleton, randomSkeleton, alteredSkeleton, copy,
     Model, modelFromSkeleton,
     Simulation, emptySimulation, runSimulation,
@@ -28,6 +28,7 @@ export
     pBar, execute, parseArguments,
     runSteps, energy,
     MetamatEnv, maxsteps, reset!, step!, actions, finished,
+    MetamatEnv2,
     fullScaleModelFromModel, plotModel
 
 include("structures.jl")
@@ -35,4 +36,5 @@ include("simulationTools.jl")
 include("COM3RWTools.jl")
 include("geometryTools.jl")
 include("MetamatRLEnv.jl")
+include("MetamatRLEnv2.jl")
 end

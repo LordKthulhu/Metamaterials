@@ -26,6 +26,18 @@ struct Material
     Material(isECC,compressive,tensile,tensilePeak,peakStrain,crackStrainRatio) = new(isECC,compressive,tensile,tensilePeak,peakStrain,crackStrainRatio)
 end
 
+Base.copy(m::Material) = Material(m.isECC,m.compressive,m.tensile,m.tensilePeak,m.peakStrain,m.crackStrainRatio)
+
+
+function randomMaterial()
+    compressive = round(30+20*rand(),digits=2)
+    tensile = round(3+2*rand(),digits=2)
+    tensilePeak = round(0.002+0.005*rand(),digits=4)
+    peakStrain = round(0.01+0.05*rand(),digits=3)
+    crackStrainRatio = round(0.7+0.25*rand(),digits=2)
+    Material(compressive,tensile,tensilePeak,peakStrain,crackStrainRatio)
+end
+
 struct Skeleton
     size::Int
     nodes::Array{Bool,2}
@@ -33,6 +45,7 @@ struct Skeleton
 end
 
 Base.copy(s::Skeleton) = Skeleton(s.size,deepcopy(s.nodes),deepcopy(s.links))
+Base.copy(t::Tuple{Skeleton,Material}) = (copy(t[1]),Material(t[2].isECC,t[2].compressive,t[2].tensile,t[2].tensilePeak,t[2].peakStrain,t[2].crackStrainRatio))
 
 function randomSkeleton(H::Int; p=0.5)
     potLinks = trues(H,H,4)

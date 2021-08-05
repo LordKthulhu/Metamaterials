@@ -5,7 +5,7 @@
 ################################################################################
 
 function nodeLine(point::Point,restraint::String)
-    sn = string(point.n)
+    0 <= point.x <= 24 ? sn = string(point.n) : sn = string(-point.n)
     sx = @sprintf("%.3f",point.x); sy = @sprintf("%.3f",point.y); sz = @sprintf("%.3f",point.z)
     "NODE " * " "^(5-length(sn)) * sn * " "^(10-length(sx)) * sx * " "^(10-length(sy)) * sy * " "^(10-length(sz)) * sz * "                    " * restraint * "\n"
 end
@@ -23,20 +23,21 @@ function elementLine(element::Element, material::Material)
     " 2000000.0    4000.0     0.000 2000000.0    4000.0     0.000" * " "^70 *"       2.0       2.0\n"
 end
 
-function loadLine(n,F)
+function loadLine(n,F,angle)
     sn = string(n)
-    sf = @sprintf("%.5f",F)
-    "LOAD " * " "^(5-length(sn)) * sn * "   0.00000   0.00000" * " "^(10-length(sf)) * sf * "\n"
+    sf = @sprintf("%.5f",cos(angle)*F)
+    sfx = @sprintf("%.5f",sin(angle)*F)
+    "LOAD " * " "^(5-length(sn)) * sn *  " "^(10-length(sfx)) * sfx * "   0.00000" * " "^(10-length(sf)) * sf * "\n"
 end
 
-function addSteps(loadPoints, step, dEpsilonMax, unitSize, H, filename; restart = true, nSteps = 5)
+function addSteps(loadPoints, step, dEpsilonMax, unitSize, H, filename; restart = true, nSteps = 5, angle=0, direction=1)
     restart ? run(`cp $(filename)-restart.aux $(filename).dat`) : nothing
     datFile = open("$filename.dat","a")
     for i=1:nSteps
         timeStr = @sprintf("%.4f",0.001*(step+i))
         write(datFile, "STEP " * " "^(5-length(string(step+i)))*string(step+i) * " "^(10-length(timeStr))*timeStr * "     0.000     0.000     0.000                                             0.000\n")
         for load in loadPoints
-            write(datFile, loadLine(load[1], 12*(H-1)*unitSize*dEpsilonMax * load[2]))
+            write(datFile, loadLine(load[1], direction*12*(H-1)*unitSize*dEpsilonMax * load[2],angle))
         end
     end
     write(datFile, "END\n")

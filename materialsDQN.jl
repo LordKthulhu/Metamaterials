@@ -110,6 +110,8 @@ function nnSGD(NN,previousNN,D)
         learning = ( NN(dtrn) for x in takenth(sgd(NN,ncycle(dtrn,50)), length(dtrn)))
         learning = reshape(collect(Float32,flatten(learning)),(1,:))
         if counter % 10 == 0
+            change = sum(hcat([ reshape(w,(1,:)) for w in ([ l.w for l in NN.layers ] .- [ l.w for l in previousNN.layers ]) ]...).^2)
+            @info "Change in neural network weights : $change"
             previousNN = deepcopy(NN)
         end
     end
@@ -129,8 +131,7 @@ function plotGeom(iterations)
             png(plt,"metamat$iter/metamat"*lpad(iter,3,"0")*"-"*lpad(i,2,"0")*".png")
         end
         i += 1
-        println("")
-        @info "Simulation $iter, max improvement : $(maximum(r)-r[1])."
+        #@info "Simulation $iter, max improvement : $(maximum(r)-r[1])."
     end
 end
 
@@ -139,7 +140,7 @@ env = [ MetamatEnv2(H=H,maxsteps=10,index=i) for i in 1:threads ]
 NN = Chain(Layer(25,25), Layer(25,12), Layer(12,1,identity); λ1=4f-5)
 
 if isfile("materialsNN.jld2")
-    NN = FileIO.load("mtaerialsNN.jld2")["NN"]
+    NN = FileIO.load("materialsNN.jld2")["NN"]
 else
     @info "Pre-training Neural Network"
     skeletons = load("Batch_14-06-2021_20:01:51/skeletons.jld")["skeletons"]
@@ -157,7 +158,7 @@ global previousNN = deepcopy(NN)
 
 D = []
 
-Reinforce.action(π::MetamatPolicy, r, s, A) = epsGreedy(s,actions(env[1],s),NN)
+Reinforce.action(π::MetamatPolicy, r, s, A) = epsGreedy(s,actions(env[1],s),NN,eps=1)
 
 @async putIter(iterations)
 
@@ -192,4 +193,4 @@ while !istaskdone(t)
 end
 
 isfile("materialsNN.jld2") ? run(`rm materialsNN.jld2`) : nothing
-save("mtaerialsNN.jld2","NN",NN)
+save("materialsNN.jld2","NN",NN)

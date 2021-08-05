@@ -7,11 +7,9 @@ metamatcurrent*
 metamatplain*
 chainBuilder.jl
 *.png
-results.csv
-parameters.csv
-LineRegResults.csv
-NNresults.csv
-StrainHard.csv
+*.csv
+!points.csv
+!elements.csv
 ioflagtemp.txt
 tool.jl
 *.jld
@@ -20,3 +18,7 @@ testscript.jl
 LRresults.csv
 *test.jl
 COM3RL2.jl
+block.jl
+5x5.jl
+test*
+untitled.jl

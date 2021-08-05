@@ -9,7 +9,7 @@ using Dates
 using Glob
 using JLD
 
-const H,iterations,randomMat,parameters = parseArguments()
+const H,iterations,randomMat,parameters,angles,output = parseArguments()
 const unitSize = 1
 const dEpsilon = 5e-4
 const nodeWeights = makeNodeWeights(H,unitSize)
@@ -28,12 +28,13 @@ barPlots = [[] for i in 1:iterations]
 skeletonLinks = [ falses(H,H,4) for i in 1:iterations ]
 
 parameterValues = []
-repeatedSimulation = 1
+repeatedSimulation = length(angles)
 materials = []
 
 if parameters != "none"
     parameterValues = readdlm(parameters,',')
     repeatedSimulation = size(parameterValues,1)
+    angles = [ 0 for i in 1:repeatedSimulation ]
     if randomMat
         error("Cannot use random material and parametric study simultaneously.")
     end
@@ -47,7 +48,7 @@ simulations = [ emptySimulation("$iter-$j",dEpsilon) for iter in 1:iterations,  
 #####                            SIMULATIONS                               #####
 ################################################################################
 
-progress = pBar(iterations,"Computing progess... ")
+progress = pBar(iterations,"Computing progress... ")
 
 Threads.@threads for iter = 1:iterations
 
@@ -59,12 +60,12 @@ Threads.@threads for iter = 1:iterations
         elseif randomMat
             compressive = round(30+20*rand(),digits=2)
             tensile = round(3+2*rand(),digits=2)
-            tensilePeak = round(0.002+0.005*rand(),digits=4)
-            peakStrain = round(0.01+0.05*rand(),digits=3)
+            tensilePeak = round(0.02+0.02*rand(),digits=3)
+            peakStrain = max(tensilePeak+0.005,round(0.02+0.03*rand(),digits=3))
             crackStrainRatio = round(0.7+0.25*rand(),digits=2)
             materials = [ Material(compressive,tensile,tensilePeak,peakStrain,crackStrainRatio) ]
         else
-            materials = [ Material(45.0,4.8) ]
+            materials = [ Material(45.0,4.8) for i in 1:repeatedSimulation ]
         end
 
         skeleton = randomSkeleton(H)
@@ -72,10 +73,13 @@ Threads.@threads for iter = 1:iterations
 
         for i in 1:repeatedSimulation
             model = modelFromSkeleton(skeleton, materials[i], unitSize, basePoints, baseElements, nodeWeights, linkWeights)
-            #model = fullScaleModelFromModel(fullScaleModelFromModel(model))
+            model = flatFullScaleModelFromModel(model)
+            if angles[i]!=0
+                model = zeroSymmetry(model)
+            end
             simulations[iter,i].model = model
             simulations[iter,i].step = 0; simulations[iter,i].strain = []; simulations[iter,i].stress = []
-            runSimulation(simulations[iter,i],crit = 9.172/(12*(2*H-1)))
+            runSimulation(simulations[iter,i],output=output,angle=angles[i],limit=0.1,direction=-1)
         end
         skeletonLinks[iter] = skeleton.links
     end
@@ -129,40 +133,25 @@ close(io)
 
 # Geometry plots
 
-progress = pBar(2*iterations,"Plotting...          ",dt=0.5)
+progress = pBar(2*iterations,"Plotting...           ",dt=0.5)
 
 for i=1:iterations
-    # fig = PyPlot.figure()
-    # PyPlot.title("Metamaterial $i")
-    # points = simulations[i,1].model.points
-    # for element in simulations[i,1].model.elements
-    #     P = [ points[findall(p->p.n==element.points[i],points)[1]] for i in 1:4 ]
-    #     X = (p->p.x).(P); Y = (p->p.z).(P)
-    #     PyPlot.fill(X,Y, facecolor = "gray", edgecolor = "black")
-    #     PyPlot.fill(24*(H-1).-X, Y, facecolor = "gray", edgecolor = "black")
-    #     PyPlot.fill(X, 24*(H-1).-Y, facecolor = "gray", edgecolor = "black")
-    #     PyPlot.fill(24*(H-1).-X, 24*(H-1).-Y, facecolor = "gray", edgecolor = "black")
-    # end
-    # PyPlot.savefig("metamat"*string(i)*"-1/metamat"*string(i)*"-barplot.png",dpi=200)
-
     plt = Plots.plot(showaxis=false,size=(400,400),title="Metamaterial $i")
     for line in barPlots[i]
         plot!(plt, line[1], line[2], lw =3, lc = :black, label = false)
     end
-    # for polygon in  barPlots[i]
-    #     plot!(plt,polygon,label=false,color=:grey)
-    # end
     png(plt,"metamat"*string(i)*"-1/metamat"*string(i)*"-barplot.png")
     next!(progress)
-    #sleep(0.01)
 end
 
 # Stress-strain plots
 
 if randomMat
     labels = [ "Random material properties" ]
-elseif repeatedSimulation > 1
+elseif parameters != "none"
     labels = [ L"\sigma_c = %$(parameterValues[i,2]) MPa, \sigma_t = %$(parameterValues[i,3]) MPa" for i in 1:repeatedSimulation ]
+elseif angles != [0]
+    labels = [ "Angle = $(angles[i]) rad" for i in 1:repeatedSimulation ]
 else
     labels = [ L"\sigma_c = 45 MPa, \sigma_t = 4.8 MPa" for i in 1:repeatedSimulation ]
 end

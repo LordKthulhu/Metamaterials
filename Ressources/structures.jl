@@ -1,6 +1,10 @@
 # Data structures and methods
 
-struct Point
+################################################################################
+###############                   GEOMETRY                   ###################
+################################################################################
+
+mutable struct Point
     n::Int
     x::Float64
     y::Float64
@@ -14,6 +18,10 @@ struct Element
     Element(n,points) = length(points) == 4 ? new(n,points) : error("Wrong number of points provided : should be 4.")
 end
 
+################################################################################
+###############                   MATERIAL                   ###################
+################################################################################
+
 struct Material
     isECC::Bool
     compressive::Float64
@@ -21,25 +29,28 @@ struct Material
     tensilePeak::Float64
     peakStrain::Float64
     crackStrainRatio::Float64
-    Material(compressive,tensile) = new(true,compressive,tensile,0.005,0.046,0.8)
+    Material(compressive,tensile) = new(true,compressive,tensile,0.040,0.045,0.8)
     Material(compressive,tensile,tensilePeak,peakStrain,crackStrainRatio) = new(true,compressive,tensile,tensilePeak,peakStrain,crackStrainRatio)
     Material(isECC,compressive,tensile,tensilePeak,peakStrain,crackStrainRatio) = new(isECC,compressive,tensile,tensilePeak,peakStrain,crackStrainRatio)
 end
 
 Base.copy(m::Material) = Material(m.isECC,m.compressive,m.tensile,m.tensilePeak,m.peakStrain,m.crackStrainRatio)
 
-
 function randomMaterial()
     compressive = round(30+20*rand(),digits=2)
     tensile = round(3+2*rand(),digits=2)
-    tensilePeak = round(0.002+0.005*rand(),digits=4)
-    peakStrain = round(0.01+0.05*rand(),digits=3)
+    tensilePeak = round(0.02+0.02*rand(),digits=3)
+    peakStrain = max(tensilePeak+0.005,round(0.02+0.03*rand(),digits=3))
     crackStrainRatio = round(0.7+0.25*rand(),digits=2)
     Material(compressive,tensile,tensilePeak,peakStrain,crackStrainRatio)
 end
 
+################################################################################
+###############        METAMATERIAL FRAME : "SKELETON"       ###################
+################################################################################
+
 struct Skeleton
-    size::Int
+    size::Int # size of the pattern
     nodes::Array{Bool,2}
     links::Array{Bool,3}
 end
@@ -56,7 +67,7 @@ function randomSkeleton(H::Int; p=0.5)
     return Skeleton(H,nodes,links)
 end
 
-function alteredSkeleton(skeleton::Skeleton, linkCoor, linkValue)
+function alteredSkeleton(skeleton::Skeleton, linkCoor, linkValue) # Alters an existing skeleton by changing the value of link at linkCoor
     nodes = falses(skeleton.size, skeleton.size)
     links = skeleton.links
     links[linkCoor] += linkValue
@@ -76,6 +87,10 @@ function alteredSkeleton(skeleton::Skeleton, linkCoor, linkValue)
     end
     Skeleton(skeleton.size,nodes,links)
 end
+
+################################################################################
+###############            MODEL FOR FEM SIMULATION          ###################
+################################################################################
 
 struct Model
     points::Vector{Point}
@@ -135,6 +150,9 @@ function modelFromSkeleton(skeleton::Skeleton,material::Material,unitSize, baseP
         if point.x == 12*(skeleton.size-1)*unitSize
             restraint[1] = '1'
         end
+        if point.x == 0
+            restraint[1] = '1'
+        end
         boundaries[point.n] = join(restraint)
     end
     filter!(p -> !(p.n in forbiddenPoints), points)
@@ -171,7 +189,7 @@ function modelFromSkeleton(skeleton::Skeleton,material::Material,unitSize, baseP
     return Model(points, elements, loadPoints, boundaries, unitSize, skeleton.size, weight, material)
 end
 
-function fullScaleModelFromModel(model::Model)
+function fullScaleModelFromModel(model::Model) # Performs X and Y symmetry to result in 4 times the initial geometry
     basePoints = deepcopy(model.points)
     baseElements = deepcopy(model.elements)
     elements = deepcopy(baseElements)
@@ -234,12 +252,115 @@ function fullScaleModelFromModel(model::Model)
     Model(points, elements, loadPoints, boundaries, unitSize, 2*size-1, model.weight, model.material)
 end
 
+function flatFullScaleModelFromModel(model::Model)
+
+    basePoints = deepcopy(model.points)
+    baseElements = deepcopy(model.elements)
+    elements = deepcopy(baseElements)
+    points = deepcopy(basePoints)
+    size = model.size
+    unitSize = model.unitSize
+    loadPoints = []
+
+    for step in 1:2
+        baseElements = deepcopy(elements)
+        basePoints = deepcopy(points)
+        currentPoint = maximum( (p -> p.n).(points) )+1
+        currentElement = maximum( (e-> e.n).(elements) )+1
+
+
+        correspondance1 = [ basePoint.n for basePoint in basePoints ]
+        correspondance2 = [ basePoint.n for basePoint in basePoints ]
+
+        for i in 1:length(basePoints)
+            if basePoints[i].x != 12*2^step*(size-1)*unitSize
+                correspondance2[i] = currentPoint
+                push!(points, Point(currentPoint, [12*2^step*(size-1)*unitSize-basePoints[i].x,basePoints[i].y,basePoints[i].z]))
+                currentPoint += 1
+            end
+        end
+        for baseElement in baseElements
+            push!(elements, Element(currentElement, [ correspondance2[findall(x->x==baseElement.points[i],correspondance1)[1]] for i in 1:4 ]))
+            currentElement += 1
+        end
+    end
+
+    boundaries = [ "" for i in 1:maximum((p->p.n).(points)) ]
+
+    for point in points
+        restraint = collect("010")
+        if point.z == 0
+            push!(loadPoints, [point.n,1])
+            restraint[3] = '1'
+        elseif point.z == 24*unitSize
+            push!(loadPoints, [point.n,-1])
+            restraint[3] = '1'
+        end
+        if point.x == 0
+            restraint[1] = '1'
+        end
+        boundaries[point.n] = join(restraint)
+    end
+
+    Model(points, elements, loadPoints, boundaries, unitSize, size, model.weight, model.material)
+end
+
+function zeroSymmetry(model::Model)
+    basePoints = deepcopy(model.points)
+    baseElements = deepcopy(model.elements)
+    elements = deepcopy(baseElements)
+    points = deepcopy(basePoints)
+    size = model.size
+    unitSize = model.unitSize
+    loadPoints = []
+    currentPoint = maximum( (p -> p.n).(points) )+1
+    currentElement = maximum( (e-> e.n).(elements) )+1
+
+
+    correspondance1 = [ basePoint.n for basePoint in basePoints ]
+    correspondance2 = [ basePoint.n for basePoint in basePoints ]
+
+    for i in 1:length(basePoints)
+        if basePoints[i].x != 0
+            correspondance2[i] = currentPoint
+            push!(points, Point(currentPoint,[-basePoints[i].x,basePoints[i].y,basePoints[i].z]))
+            currentPoint += 1
+        end
+    end
+    for baseElement in baseElements
+        push!(elements, Element(currentElement, [ correspondance2[findall(x->x==baseElement.points[i],correspondance1)[1]] for i in 1:4 ]))
+        currentElement += 1
+    end
+
+    boundaries = [ "" for i in 1:maximum((p->p.n).(points)) ]
+
+    for point in points
+        restraint = collect("010")
+        if point.z == 0
+            push!(loadPoints, [point.n,1])
+            restraint[3] = '1'
+        elseif point.z == 24*unitSize
+            push!(loadPoints, [point.n,-1])
+            restraint[3] = '1'
+        end
+        boundaries[point.n] = join(restraint)
+    end
+
+    Model(points, elements, loadPoints, boundaries, unitSize, size, model.weight, model.material)
+end
+
+
+################################################################################
+#############   SIMULATION : HOLDS DATA THROUGHOUT SIMULATION  #################
+################################################################################
+
+
 mutable struct Simulation
     filename::String
     model::Model
-    dEpsilon::Float64
-    step::Int
-    exit::Int
+    dEpsilon::Float64 # Strain corresponding to each displacement step in the simulation
+    step::Int # Current simulation step
+    exit::Int # 0 : success, 1 : fail
     strain::Vector{Float64}
     stress::Vector{Float64}
 end
@@ -248,11 +369,19 @@ function emptySimulation(iter,dEpsilon::Float64)
     return Simulation("metamat$iter",Model([],[],[],[],0,0,0,Material(0,0)),dEpsilon,0,1,[],[])
 end
 
-function runSimulation(simulation::Simulation;crit=0.15)
+function runSimulation(simulation::Simulation;limit=0.2,output="none",angle=0,direction=1)
+
+    # Files preparation
+
     filename = simulation.filename
     run(`mkdir $filename`)
-    datFile = open("$filename.dat","w")
-    write(datFile, "Metamaterial Project\n1202000011000000000000002     0.700     0.000     0.000         0\nNODE\n")
+
+    datFile = open("$filename.dat","w") # Initial start top of file (without steps)
+    if output =="none"
+        write(datFile, "Metamaterial Project\n1202000011000200000000002     0.700     0.000     0.000         0\nNODE\n")
+    else
+        write(datFile, "Metamaterial Project\n1202000011000000000000002     0.700     0.000     0.000         0\nNODE\n")
+    end
     for point in simulation.model.points
         write(datFile, nodeLine(point,simulation.model.boundaries[point.n]))
     end
@@ -263,36 +392,41 @@ function runSimulation(simulation::Simulation;crit=0.15)
     write(datFile, "LOAD\n\n")
     close(datFile)
 
-    auxFile = open("$filename-restart.aux","w")
+    auxFile = open("$filename-restart.aux","w") # Restart function top of file (without steps)
     lines = readlines("$filename.dat",keep=true)
     for i=1:length(lines)
         if i == 2
-            write(auxFile,"1212000011000000000000002     0.700     0.000     0.000         0\n")
+            if output =="none"
+                write(auxFile,"1212000011000200000000002     0.700     0.000     0.000         0\n")
+            else
+                write(auxFile,"1212000011000000000000002     0.700     0.000     0.000         0\n")
+            end
         else
             write(auxFile,lines[i])
         end
     end
     close(auxFile)
-    runSteps(simulation)
-    while simulation.strain[end] < 0.2 && simulation.exit == 0 #&& simulation.stress[end]/maximum(simulation.stress) > 0.25 && ( simulation.stress[end]/maximum(simulation.stress) > 0.4 || std(simulation.stress[end-5:end]) > 0.35 )
-        runSteps(simulation)
+
+    # COM3 Simulation
+
+    runSteps(simulation,angle,direction)
+    while simulation.strain[end] < limit && simulation.exit == 0 #&& simulation.stress[end]/maximum(simulation.stress) > 0.25 && ( simulation.stress[end]/maximum(simulation.stress) > 0.4 || std(simulation.stress[end-5:end]) > 0.35 )
+        runSteps(simulation,angle,direction)
     end
+
+    # Cleanup
 
     mechFiles = glob("$(filename)/MECHIFI*")
     run(`rm $mechFiles`)
     addSteps(simulation.model.loadPoints, 0, simulation.dEpsilon,
-    simulation.model.unitSize, simulation.model.size, simulation.filename, restart = true, nSteps = simulation.step)
+    simulation.model.unitSize, simulation.model.size, simulation.filename, restart = true, nSteps = simulation.step,angle=angle,direction=direction) # Creates the full .dat file with all steps for later re-running purposes
     run(`mv $filename.dat $filename`)
     run(`mv $filename/aux.nod $filename/$filename-MECH.nod`)
     run(`mv $filename/aux.crk $filename/$filename-MECH.crk`)
     run(`mv $filename/aux.fld $filename/$filename-MECH.fld`)
 
-    # if simulation.step > 200
-    #     simulation.exit = 1
-    # end
-
     if simulation.exit == 1
-        #println("Simulation $filename failed. Starting over.")
         run(`rm -r $filename`)
     end
+
 end

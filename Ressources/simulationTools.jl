@@ -43,12 +43,24 @@ function parseArguments()
         elseif ARGS[currentArg] == "-parametric"
             parameters = ARGS[currentArg+1]
             currentArg += 2
+        elseif ARGS[currentArg] == "-angle"
+            angles = readdlm(ARGS[currentArg+1],',')
+            currentArg += 2
+        elseif ARGS[currentArg] == "-output"
+            if ARGS[currentArg+1] in ["none","all"]
+                output = ARGS[currentArg+1]
+                currentArg += 2
+            else
+                throw(ArgumentError("Unsupported argument : $(ARGS[currentArg+1]). For available arguments, type -help."))
+            end
         elseif ARGS[currentArg] == "-help"
             println("Supported arguments are:\n
                -batchsize            Specify the number of desired simulations\n
                -material-random      Base-material will be randomly picked\n
                -patternsize          Size of the pattern grid (default is 3)\n
-               -parametric           Please specify a parameters file for parametric study.\n")
+               -parametric           Please specify a parameters file for parametric study\n
+               -angle                Please specify a parameter file for angles\n
+               -output               output files written by COM3 : none or all (default is none)\n")
             exit(0)
         else
             throw(ArgumentError("Unsupported argument : $(ARGS[currentArg]). For available arguments, type -help."))
@@ -58,10 +70,12 @@ function parseArguments()
     (@isdefined iterations) ? nothing : iterations = 1
     (@isdefined randomMat) ? nothing : randomMat = false
     (@isdefined parameters) ? nothing : parameters = "none"
-    (H,iterations,randomMat,parameters)
+    (@isdefined angles) ? nothing : angles = [0]
+    (@isdefined output) ? nothing : output = "none"
+    (H,iterations,randomMat,parameters,angles,output)
 end
 
-function runSteps(simulation::Simulation)
+function runSteps(simulation::Simulation,angle,direction)
 
     if simulation.step == 0
         restart = false; nSteps = 10
@@ -70,7 +84,7 @@ function runSteps(simulation::Simulation)
     end
 
     addSteps(simulation.model.loadPoints, simulation.step, simulation.dEpsilon,
-    simulation.model.unitSize, simulation.model.size, simulation.filename, restart = restart, nSteps = nSteps)
+    simulation.model.unitSize, simulation.model.size, simulation.filename, restart = restart, nSteps = nSteps,angle = angle, direction=direction)
     filename = simulation.filename
     run(`mv $filename.dat $filename`)
     simulation.exit = execute(filename)

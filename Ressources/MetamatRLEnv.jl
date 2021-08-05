@@ -23,8 +23,14 @@ function actions(env::MetamatEnv, s)
     for index in findall(s.links[1:end-1,2:end,1])
         potLinks[index[1],index[2],3] = false
     end
-    append!( [ [ ( CartesianIndex(i,j,k)== l ? -1 : 0 ) for i=1:3,j=1:3,k=1:4 ] for l in findall(potLinks .* s.links) ],
-            [ [ ( CartesianIndex(i,j,k)== l ? 1 : 0 ) for i=1:3,j=1:3,k=1:4 ] for l in findall(potLinks .& (s.links .== 0)) ])
+    for i in 1:H-1
+        middleLinks = findall(x->s.links[x] &&((x[2]==i && x[3] in [3,4]) || (x[2]==i+1 && x[3]==1)),[CartesianIndex(i,j,k) for i=1:3,j=1:3,k=1:4])
+        if length(middleLinks)==1
+            potLinks[middleLinks[1]] = false
+        end
+    end
+    append!( [ [ ( CartesianIndex(i,j,k)== l ? -1 : 0 ) for i=1:H,j=1:H,k=1:4 ] for l in findall(potLinks .* s.links) ],
+            [ [ ( CartesianIndex(i,j,k)== l ? 1 : 0 ) for i=1:H,j=1:H,k=1:4 ] for l in findall(potLinks .& (s.links .== 0)) ])
     #append!( [ [i,0] for i in findall(potLinks .& s.links) ], [ [i,1] for i in findall(potLinks .& (s.links .== 0) )] )
 end
 
@@ -39,11 +45,11 @@ function step!(env::MetamatEnv, s, a)
         env.reward, s′
     else
         material = Material(45.0,4.8)
-        model = modelFromSkeleton(s′, material, 1, makeBasePoints(), makeBaseElements(s′.size), makeNodeWeights(s′.size,1), makeLinkWeights(s′.size,1))
-        simulation = emptySimulation("current$(env.index)",2e-4)
+        model = flatFullScaleModelFromModel(modelFromSkeleton(s′, material, 1, makeBasePoints(), makeBaseElements(s′.size), makeNodeWeights(s′.size,1), makeLinkWeights(s′.size,1)))
+        simulation = emptySimulation("current$(env.index)",4e-4)
         i=0
         while simulation.exit == 1 && i<3
-            simulation = emptySimulation("current$(env.index)",2e-4)
+            simulation = emptySimulation("current$(env.index)",4e-4)
             simulation.model = model
             runSimulation(simulation)
             run(`rm -r metamatcurrent$(env.index) metamatcurrent$(env.index)-restart.aux`)

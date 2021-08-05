@@ -25,6 +25,9 @@ function parseArguments()
                 throw(ArgumentError("Unsupported argument : $(ARGS[currentArg]). For available arguments, type -help."))
             end
             currentArg += 2
+        elseif ARGS[currentArg] == "-normalize"
+            normalize = true
+            currentArg += 1
         elseif ARGS[currentArg] == "-help"
             println("Supported arguments are:\n
                -X           Value for X axis : $(prod([arg*", " for arg in possibleArgs])[1:end-2]).\n
@@ -36,12 +39,20 @@ function parseArguments()
     end
     (@isdefined X) ? nothing : X = 0
     (@isdefined Y) ? nothing : Y = 2
-    (X,Y)
+    (@isdefined normalize) ? nothing : normalize = false
+    (X,Y,normalize)
 end
 
-X,Y = parseArguments()
+X,Y,normalize = parseArguments()
 
 data = readdlm("results.csv",',')
+
+if normalize
+    labels = "Normalized " .* labels
+    for i in reverse(1:size(data,1))
+        data[i,:] = data[i,:]./data[1,:]
+    end
+end
 
 sets = size(data,1)÷length(possibleArgs)
 

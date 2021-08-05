@@ -29,7 +29,7 @@ export
     runSteps, energy,
     MetamatEnv, maxsteps, reset!, step!, actions, finished,
     MetamatEnv2,
-    fullScaleModelFromModel, plotModel
+    fullScaleModelFromModel, flatFullScaleModelFromModel, zeroSymmetry, plotModel
 
 include("structures.jl")
 include("simulationTools.jl")

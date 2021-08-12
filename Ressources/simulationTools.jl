@@ -43,6 +43,13 @@ function parseArguments()
         elseif ARGS[currentArg] == "-parametric"
             parameters = ARGS[currentArg+1]
             currentArg += 2
+        elseif ARGS[currentArg] == "-mode"
+            if ARGS[currentArg+1] in ["compression","shear"]
+                mode = ARGS[currentArg+1]
+                currentArg += 2
+            else
+                throw(ArgumentError("Unsupported argument : $(ARGS[currentArg]). For available arguments, type -help."))
+            end
         elseif ARGS[currentArg] == "-help"
             println("Supported arguments are:\n
                -batchsize            Specify the number of desired simulations\n
@@ -58,7 +65,8 @@ function parseArguments()
     (@isdefined iterations) ? nothing : iterations = 1
     (@isdefined randomMat) ? nothing : randomMat = false
     (@isdefined parameters) ? nothing : parameters = "none"
-    (H,iterations,randomMat,parameters)
+    (@isdefined mode) ? nothing : mode = "compression"
+    (H,iterations,randomMat,parameters,mode)
 end
 
 function runSteps(simulation::Simulation)

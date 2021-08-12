@@ -9,7 +9,7 @@ using Dates
 using Glob
 using JLD
 
-const H,iterations,randomMat,parameters = parseArguments()
+const H,iterations,randomMat,parameters,mode = parseArguments()
 const unitSize = 1
 const dEpsilon = 5e-4
 const nodeWeights = makeNodeWeights(H,unitSize)

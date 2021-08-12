@@ -9,7 +9,7 @@ using Dates
 using Glob
 using JLD
 
-const H,iterations,randomMat,parameters,angles,output = parseArguments()
+H,iterations,randomMat,parameters,angles,output,skels = parseArguments()
 const unitSize = 1
 const dEpsilon = 5e-4
 const nodeWeights = makeNodeWeights(H,unitSize)
@@ -40,6 +40,11 @@ if parameters != "none"
     end
 end
 
+if skels != "none"
+    skeletons = load(skels)["skeletons"]
+    iterations = length(skeletons)
+end
+
 simulations = [ emptySimulation("$iter-$j",dEpsilon) for iter in 1:iterations,  j in 1:repeatedSimulation ]
 
 @printf("Starting %dx%d simulations on %d threads.\n",iterations,repeatedSimulation,Threads.nthreads())
@@ -68,7 +73,12 @@ Threads.@threads for iter = 1:iterations
             materials = [ Material(45.0,4.8) for i in 1:repeatedSimulation ]
         end
 
-        skeleton = randomSkeleton(H)
+        skeleton = NaN
+        if skels != "none"
+            skeleton = skeletons[iter]
+        else
+            skeleton = randomSkeleton(H)
+        end
         barPlots[iter] = plotGeometry(skeleton) # Adding data for geometry plot
 
         for i in 1:repeatedSimulation

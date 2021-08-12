@@ -46,6 +46,9 @@ function parseArguments()
         elseif ARGS[currentArg] == "-angle"
             angles = readdlm(ARGS[currentArg+1],',')
             currentArg += 2
+        elseif ARGS[currentArg] == "-skeletons"
+            skeletons = ARGS[currentArg+1]
+            currentArg += 2
         elseif ARGS[currentArg] == "-output"
             if ARGS[currentArg+1] in ["none","all"]
                 output = ARGS[currentArg+1]
@@ -72,7 +75,8 @@ function parseArguments()
     (@isdefined parameters) ? nothing : parameters = "none"
     (@isdefined angles) ? nothing : angles = [0]
     (@isdefined output) ? nothing : output = "none"
-    (H,iterations,randomMat,parameters,angles,output)
+    (@isdefined skeletons) ? nothing : skeletons = "none"
+    (H,iterations,randomMat,parameters,angles,output,skeletons)
 end
 
 function runSteps(simulation::Simulation,angle,direction)
